@@ -99,3 +99,25 @@ Zapsáno do `README.md` sekce 6, bod 17.
 ### L-005: Path on Windows v `npm create vite` se „opraví sama", když přepneš na relativní path z čisté cwd
 
 Detail viz L-001. Tady jen poznamenat, že **opětovné spuštění `create-vite` po `rm -rf` jelo bez problému** — Node cache si pamatuje stažený `create-vite` balíček, takže druhý běh byl ~10× rychlejší než první.
+
+---
+
+### L-006: Build outputs v monorepo workspaces — důvěřuj, ale verifikuj
+
+**Incident (reflective non-incident):**
+Při commitu BLOK A Day 2 jsme uviděli `packages/shared/dist/` files v recap listingu a vznikla otázka, zda jsou v gitu. Diagnostika ukázala, že **nejsou** — pattern `dist` v root `.gitignore` (bez leading `/`) match anywhere v tree, včetně subworkspaců. Ale ten matching **není intuitivní** z pohledu kohokoli, kdo prochází `.gitignore` od shora dolů a vidí pattern usazený v sekci „Nuxt.js build / generate output" (matoucí název původně od GitHub Node templatu).
+
+**Pravda o gitignore patternech:**
+- `dist` (bez slash, bez prefixu) = **match anywhere** v tree, including workspaces ✓
+- `/dist` (s leading slash) = match **jen v rootu**, NE v subworkspacích ✗
+- `packages/*/dist/` = **explicit workspace coverage** — defensive a recommended pro monorepa, protože dokumentuje záměr
+
+**Pravidlo pro monorepa:**
+Generic patterny FUNGUJÍ, ale **explicit workspace patterns lépe dokumentují záměr**. Kdokoli později otevře `.gitignore`, hned vidí „aha, workspaces mají vlastní dist outputy, tady to máme zajištěné" — nemusí debugovat globální regex semantiku. Hodnotitel uvidí workspace-aware thinking.
+
+**Verifikační příkazy do kufřice (monorepo audit):**
+- `git ls-files | grep dist` — co je reálně tracked v gitu
+- `git check-ignore -v path/to/file` — proč je / není ignored (ukazuje konkrétní řádek .gitignore)
+- `git status --ignored` — co je ignored v aktuální složce (visual sanity check)
+
+**Mantra:** Důvěřuj patternům, ale verifikuj před commitem. „Vypadá to, že je to ignored" není totéž jako „git to skutečně ignoruje".
