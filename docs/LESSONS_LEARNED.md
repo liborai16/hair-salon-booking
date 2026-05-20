@@ -121,3 +121,48 @@ Generic patterny FUNGUJÍ, ale **explicit workspace patterns lépe dokumentují 
 - `git status --ignored` — co je ignored v aktuální složce (visual sanity check)
 
 **Mantra:** Důvěřuj patternům, ale verifikuj před commitem. „Vypadá to, že je to ignored" není totéž jako „git to skutečně ignoruje".
+
+---
+
+## Day 2 — 2026-05-20
+
+### L-007: Triangulace přes dvě sezení — architekt vidí konzistenci, implementer vidí runtime
+
+**Incident (reflective non-incident):**
+Před commitem `pricing.ts` (Day 2 BLOK B) jsme rozhodnutí prohnali dvěma Claude
+sezeními s odlišným kontextem: **architekt** (Claude.ai — držel plán Day 2,
+decisions log, strategický pohled) a **implementer** (Claude Code — viděl
+filesystem, `firebase.json`, reálný kód a runtime). Architekt navrhl umístit
+pricing do `@hsb/shared`; implementer to měl postavit.
+
+**Co každý pohled odhalil:**
+Architekt potvrdil *strategickou konzistenci* — že shared pricing navazuje na
+D-012/D-013 (SDK-agnostický core, hexagonální vrstvení). To je nutné, ale nestačí.
+Implementer při čtení konkrétního kódu a configu chytil **tři věci, které
+strategický pohled strukturálně nevidí**:
+1. **Rounding edge case** — `computeServiceDuration` zaokrouhloval i krátké vlasy,
+   takže „Express barva 25 min" by se tiše nafoukla na 30. Odhaleno čtením těla
+   funkce, ne plánu.
+2. **Deploy bundling** — `functions/` neměly mechanismus, jak `@hsb/shared` dostat
+   do cloudu (workspace dep se z npm registry nenainstaluje). Odhaleno čtením
+   `firebase.json`. Vedlo k samostatnému **D-015**.
+3. **Grid placement** — z diskuze o rounding vyplynulo, že 15-min grid patří do
+   slot algoritmu (Day 3 `availability.ts`), ne do výpočtu délky. Hranice, kterou
+   odhalil až code-close pohled.
+
+**Pravidlo:**
+Čistě strategický review by odeslal rounding bug i rozbitý deploy — obojí žije
+v runtime/kódu, kam plán nedohlédne. Dva pohledy s **odlišným kontextem** najdou
+různé třídy chyb; jeden pohled míjí ty z druhé domény.
+
+**Mechanika pro budoucí použití:**
+- Před commitem s netriviální logikou: ~5 min triangulace s druhou AI session.
+- Druhá session musí mít **jiný kontext** (jedna strategie/plán, druhá kód/runtime)
+  — jinak je to echo chamber.
+- Ptej se explicitně na **alternativy a edge-cases**, ne „souhlasíš?".
+- Procesní rámec, který jsme u toho přijali (metodika, ne nález triangulace):
+  **každý decision record jede se svou implementací** — proto esbuild bundling
+  dostal vlastní D-015, ne přílepek k D-014.
+
+**Mantra:** Architekt vidí konzistenci, implementer vidí runtime. Bug se nejčastěji
+schovává tam, kde se ty dva pohledy nepřekrývají.
