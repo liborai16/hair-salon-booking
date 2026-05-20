@@ -151,6 +151,13 @@ vite.config.ts.timestamp-*
 firebase-debug.log*
 firestore-debug.log*
 
+# Workspace-level TypeScript build outputs.
+# Defensive: the `dist` pattern on line 83 already matches anywhere in
+# the tree (gitignore patterns without leading `/` are tree-wide), so
+# this is redundant. But the explicit workspace-aware pattern documents
+# intent and survives any future narrowing of the global `dist` rule.
+packages/*/dist/
+
 # OS-generated files
 .DS_Store
 Thumbs.db
