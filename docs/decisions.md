@@ -197,4 +197,34 @@ Cloud Functions historicky byly CommonJS. Gen2 + Node 22 ale nativně podporují
 
 ---
 
+### D-012 — Sdílené doménové typy přes třetí workspace `packages/shared/` (NE duplikace, NE path-based)
+
+**Kontext:**
+`web/` (Vite SPA) i `functions/` (Cloud Functions) potřebují **stejné TypeScript interfaces** pro Firestore document shapes — celkem **9 entit**: `Service`, `Stylist`, `Absence`, `Booking`, `BookingCustomer`, `CustomerProfile`, `User`, `SalonSettings`, `Notification`. Tohle rozhodnutí padlo na konci Day 1 jako příprava pro Day 2 ráno, kdy budeme typy psát.
+
+**Alternativy:**
+1. **A — Třetí npm workspace `packages/shared/`** (zvolené). `packages/shared/src/types.ts` definuje vše, oba workspaces importují přes alias `@hsb/shared`. Single source of truth.
+2. **B — Duplicitní soubor** v obou workspacích (`web/src/lib/types.ts` + `functions/src/types.ts`), identický obsah, ruční synchronizace.
+3. **C — Path-based import** přes relativní cestu (`functions/src/handlers/x.ts` → `import { Booking } from "../../../web/src/lib/types.js"`). Funkce by znala interní strukturu webu.
+
+**Proč A:**
+1. **DRY garantována.** Jediná definice = žádný drift. Změna shape (nové pole na `Booking`) se automaticky propíše. B vyžaduje manuální sync (riziko, že někdo zapomene), C vyžaduje hluboké relativní cesty.
+2. **Architektonická čistota.** `shared/` je **vrstva nad** oběma workspacy. Web ani functions o sobě navzájem nevědí, oba znají jen `shared/`. Vztahy typu C porušují modularitu — funkce by neměly vědět, kde web ukládá své knihovny.
+3. **Signál pro hodnotitele.** Třetí workspace explicitně ukazuje, že **přemýšlím o ownership a vrstvení**, ne že jsem typy nejdřív duplikoval a pak refaktoroval pod tlakem.
+4. **Setup cena malá.** Jeden `packages/shared/package.json`, jeden `tsconfig.json`, jeden řádek v root `workspaces` array. ~5 minut. Vyplatí se při prvním shared importu.
+5. **Compose-friendly.** `shared/` nemá runtime deps, jen TypeScript zdrojáky. `npm install` ho hoistne stejně jako jiné dev deps, žádný extra prostor v Docker image. Žádný build step v MVP (TS resolution dělá importující workspace).
+
+**Trade-off:**
+- Trojhlavá monorepo struktura = nenulový cognitive overhead pro nového čtenáře. Mitigace: `README.md` sekce 2 (architektura) tu rozdělení popíše.
+- Pokud bychom někdy chtěli `shared/` publikovat jako standalone npm balíček (např. otevření kódu komunitě), museli bychom přidat build step. V monorepu ale žije jako čistý "TypeScript source" workspace.
+
+**Implementační kroky (Day 2 ráno):**
+1. Scaffold `packages/shared/{package.json, tsconfig.json, src/types.ts, src/firestore-helpers.ts}`.
+2. Přidat `"packages/shared"` do root `workspaces` array.
+3. Importní alias `@hsb/shared` přes `package.json#name` (preferovaně) — TS resolver to zvládne sám díky NodeNext modulu.
+4. Migrovat `functions/src/index.ts` na importy z `@hsb/shared` (až budou existovat handlery).
+5. Verifikovat během `npm run build` ve `web/` i ve `functions/`.
+
+---
+
 *(Day 2 a další záznamy přibudou níže.)*

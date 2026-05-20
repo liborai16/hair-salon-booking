@@ -114,7 +114,13 @@ hair-salon-booking/
 ### Plán 6 dní
 
 - **Day 1** (2026-05-20, hotovo): scaffold (Vite + Functions + emulators + docker), config, README skeleton.
-- **Day 2:** data types + Cloud Functions plné (createBooking + manageBookingByToken) + Rules finální + seed plný + Auth setup.
+- **Day 2 (next):**
+  1. Třetí workspace `packages/shared/` (rozhodnuto Day 1, **D-012**) s 9 doménovými TypeScript interfaces: `Service`, `Stylist`, `Absence`, `Booking`, `BookingCustomer`, `CustomerProfile`, `User`, `SalonSettings`, `Notification`. Web i functions importují přes alias `@hsb/shared`.
+  2. Firestore Timestamp ↔ JS Date helpery v `shared/firestore-helpers.ts` (server vs. client SDK mají subtle rozdíly v Timestamp typu — vyřešit jednou, sdílet všude).
+  3. Cloud Functions plné: `createBooking` (transakční slot re-check, race-condition safe) + `manageBookingByToken` (constant-time cancelToken validace pro magic-link cancel).
+  4. Firestore rules finální — odkomentovat helper funkce v `firestore.rules`, vyplnit `if false` placeholdery konkrétní auth/role logikou (PII split enforcement na úrovni rules).
+  5. Seed plný — `scripts/seed.mjs` naplní 10 služeb, 5 stylistů, 3 ukázkové bookingy, 3 admin uživatele s rolemi.
+  6. Auth setup — Firebase Auth Email/Password + custom claims pro role (`owner`/`receptionist`/`stylist`), tak aby Firestore rules mohly číst role bez extra dotazu.
 - **Day 3:** veřejný booking flow + magic-link cancel + landing skeleton + pricing.ts s testy.
 - **Day 4:** admin login + rozvrh + rezervace + walk-in + customer lookup.
 - **Day 5:** owner: služby + personál + absence + přehledy + SPAYD + klienti CRM + landing polish + zbylé testy.
