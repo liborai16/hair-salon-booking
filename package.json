@@ -1,0 +1,23 @@
+{
+  "name": "hair-salon-booking",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Case study: rezervační systém pro kadeřnictví (Vite + React + Firebase)",
+  "workspaces": [
+    "web",
+    "functions"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace=web",
+    "build": "npm run build --workspace=web",
+    "test": "npm run test --workspace=web",
+    "emulators": "firebase emulators:start",
+    "seed": "node scripts/seed.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "firebase-tools": "^15.18.0"
+  }
+}

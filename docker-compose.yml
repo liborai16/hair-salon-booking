@@ -1,0 +1,58 @@
+# docker-compose.yml — local development environment
+#
+# Two services run in parallel:
+#
+#   1. firebase-emulators (custom image, see Dockerfile.emulator):
+#      - JRE 17 (required by Firestore + Pub/Sub emulators)
+#      - firebase-tools 15
+#      - pre-cached emulator JARs (fast cold start)
+#      - exposes ports 9099 (Auth), 8080 (Firestore), 5001 (Functions),
+#        5000 (Hosting), 4000 (Emulator UI)
+#
+#   2. web (vanilla node:22-bullseye-slim):
+#      - bind-mounts the whole repo into /workspace
+#      - anonymous volumes for node_modules paths so Linux container
+#        builds its own deps without conflicting with Windows host
+#        binaries (esbuild, swc, etc. have platform-specific ABI)
+#      - runs Vite dev server on :5173 with --host 0.0.0.0
+#
+# Usage:
+#   docker compose build           # one-time: build emulator image
+#   docker compose up              # start both services
+#   docker compose up -d           # detached
+#   docker compose down            # stop and remove containers
+#
+# First start of `web` runs `npm install` in the container (slow,
+# ~30-60s). Subsequent starts reuse the anonymous volume, fast.
+
+services:
+  firebase-emulators:
+    build:
+      context: .
+      dockerfile: Dockerfile.emulator
+    container_name: hsb-emulators
+    ports:
+      - "9099:9099"   # Auth
+      - "8080:8080"   # Firestore
+      - "5001:5001"   # Functions
+      - "5000:5000"   # Hosting
+      - "4000:4000"   # Emulator UI
+    volumes:
+      - .:/workspace
+    working_dir: /workspace
+    command: firebase emulators:start --project hair-salon-booking-cs-69a08
+
+  web:
+    image: node:22-bullseye-slim
+    container_name: hsb-web
+    ports:
+      - "5173:5173"
+    volumes:
+      - .:/workspace
+      - /workspace/node_modules
+      - /workspace/web/node_modules
+      - /workspace/functions/node_modules
+    working_dir: /workspace
+    command: sh -c "npm install && npm run dev --workspace=web -- --host 0.0.0.0"
+    depends_on:
+      - firebase-emulators

@@ -1,0 +1,200 @@
+# Decisions log
+
+Per-decision motivace pro **každé větší architektonické nebo procesní rozhodnutí** v projektu. Cílem je, aby kdokoli (já za měsíc, hodnotitel, případný maintainer) viděl **proč** — ne jen co.
+
+**Konvence zápisu:**
+- Každý záznam má **datum**, **rozhodnutí (krátký název)**, **kontext**, **uvažované alternativy**, **proč jsme zvolili tuhle**, **trade-offs**.
+- Když rozhodnutí později měníme, **zapíšeme nový záznam** (s odkazem na původní), nepřepisujeme starý.
+- ID formát `D-NNN` v chronologickém pořadí.
+
+---
+
+## Day 1 — 2026-05-20
+
+### D-001 — Stack frontend = Vite + React 19 + TS + Tailwind 4 (NE Next.js)
+
+**Kontext:**
+V přípravných sezeních jsme nejprve plánovali **Next.js 14 + App Router**. V průběhu Day 1 jsme po reanalýze finálního scope **pivotovali na Vite SPA**.
+
+**Alternativy:**
+1. **Next.js 14** — SSR, file-routing, SEO benefit.
+2. **Vite SPA** (zvolené) — pure client-side, žádný SSR, rychlejší dev.
+3. Remix — overhead pro náš případ, navíc právě teď v Remix → React Router v7 transici.
+
+**Proč Vite:**
+1. **Žádný SSR nepotřebujeme.** Veřejný booking flow je interaktivní (state-heavy: výběr služby → kadeřníka → termínu → kontakt → potvrzení). SSR by jen komplikoval state management.
+2. **PII split a magic-link cancel** jsou čistě klientské + serverless toky. Next.js API routes vs. Cloud Functions = dvě cesty na backend, zbytečné kognitivní zatížení.
+3. **Marketing landing není SEO-kritický** — case study není reálný byznys, hodnotitel netestuje SEO.
+4. **Vite build je rychlejší** a jednodušší pro Firebase Hosting — `npm run build` → `web/dist/` → static deploy bez serverové vrstvy.
+
+**Trade-off:** Ztrácíme SSR benefit pro landing (slower first paint, žádné meta tags na serveru). Pro reálný produkt bych šel do Next.js. Pro case study je SPA dostatečné.
+
+---
+
+### D-002 — Monorepo s npm workspaces (`web/` + `functions/`)
+
+**Kontext:**
+Frontend (Vite SPA) a backend (Cloud Functions) jsou dvě separátní deployable units, ale sdílejí lifecycle a v budoucnu (Day 2+) i doménové typy.
+
+**Alternativy:**
+1. **Dva separátní repa** — čisté oddělení, ale duplikace lockfilů, deployment proces synchronizace, dvojí PR review.
+2. **Monorepo bez workspaces** — společný git, ale dva `node_modules/`, dva lockfily.
+3. **Monorepo s npm workspaces** (zvolené) — jediný `node_modules/` v rootu (hoisting), jediný `package-lock.json`.
+4. **pnpm workspaces** — efektivnější disk, ale přidává tooling závislost (pnpm CLI).
+5. **Turborepo / Nx** — caching/orchestration, ale overhead pro 2 workspaces.
+
+**Proč npm workspaces:**
+1. **Jediný `package-lock.json`** = deterministický build pro hodnotitele po `git clone && npm install`.
+2. **Hoisting** snižuje disk footprint a urychluje `npm install`.
+3. **Shared deps** (TypeScript, ESLint) instalovány jednou, sdílejí stejnou verzi.
+4. **Volba pro budoucí `shared/` workspace** — třetí workspace pro doménové typy v Day 2, beze změny tooling.
+
+**Trade-off:** Workspaces mají edge cases (peer deps, version conflicts), ale pro 2 workspaces a explicitní stack riziko minimální.
+
+---
+
+### D-003 — Tailwind 4 přes `@tailwindcss/vite` + `@import "tailwindcss"` (žádný `tailwind.config.js`)
+
+**Kontext:**
+Tailwind 4 (release 2025) zásadně přepracovala konfiguraci. Config je teď **v CSS**, ne v JS. Vite plugin (`@tailwindcss/vite`) integruje engine přímo do Vite buildu.
+
+**Alternativy:**
+1. **Tailwind 3** — známý, hodně tutoriálů, `tailwind.config.js` v JS.
+2. **Tailwind 4 přes PostCSS plugin** — funguje, ale Vite plugin je oficiální cesta.
+3. **Tailwind 4 přes `@tailwindcss/vite`** (zvolené) — minimum tooling, žádný JS config.
+
+**Proč Tailwind 4 + Vite plugin:**
+1. **Méně souborů, méně kontextu.** Design tokens (barvy, fonty, spacing) půjdou do `@theme { ... }` v CSS, vedle stylů.
+2. **Oxide engine v Rust** je výrazně rychlejší než starý JS engine.
+3. **DX pro designera:** vše vizuálně v jednom CSS souboru, ne v JSON-like JS objektu.
+4. **Future-proof:** Tailwind 4 je směr týmu, nový kód se na ní bude psát.
+
+**Trade-off:** Méně tutoriálů online (TW4 je nový), pár community pluginů ještě nemigrovalo. Pro náš zero-plugin use case OK.
+
+---
+
+### D-004 — Žádný shadcn/ui — čistý Tailwind
+
+**Kontext:**
+Standardní volba pro React + Tailwind projekt v 2026 je shadcn/ui (kopíruje high-quality komponenty do projektu, kde je upravuješ).
+
+**Proč ne:**
+1. **Uživatel je designér s vlastním vizuálním vkusem.** shadcn diktuje look (neutrální, americký SaaS); my chceme vlastní brand vibe.
+2. **Komponenty, které potřebujeme** (Calendar, Dialog, Combobox), jsou jednoduché — vlastní implementace v Tailwind je rychlejší než přijetí shadcn idiomů + customizace.
+3. **Hodnotitel pozná** vlastní design vs. „další shadcn projekt". V hireability světě je viditelný styl plus.
+
+**Trade-off:** Víc kódu napsat, ale o tom case study je. Plus accessibility a fokus management musíme řešit sami (shadcn to dělá za nás přes Radix).
+
+---
+
+### D-005 — Manuální Firebase scaffold místo `firebase init`
+
+**Kontext:**
+Standardní cesta = `firebase init functions`, `firebase init firestore`, atd. — čtyři interaktivní příkazy.
+
+**Důvody pro manuální cestu:**
+1. **Bash automatizace má non-interaktivní omezení** — `firebase init` by se zasekl na první otázce.
+2. **Edukačně lepší** — uživatel vidí každou volbu v `firebase.json` s komentářem proč.
+3. **Žádné magic boilerplate** — `firebase init` generuje šablony, které pak nikdo nečte (a které neodrážejí naše decisions, např. `region` nebo `maxInstances`).
+4. **Flexibilita** — můžeme rovnou nastavit Functions Gen2 + region + maxInstances bez post-init editů.
+
+**Trade-off:** Musíme vědět, co píšeme. Plus risk, že něco zapomeneme (např. `firestore.indexes.json` mít, ale prázdné).
+
+---
+
+### D-006 — Firestore rules = deny-all skeleton se všemi 9 collections viditelnými
+
+**Kontext:**
+Day 1 nemá ještě auth flow, takže rules jsou jen placeholder. Otázka byla **co tam dát**.
+
+**Alternativy:**
+1. **Default `firebase init` rules:** `match /{document=**} { allow read, write: if false; }` — jeden řádek, nic neříká.
+2. **Skeleton se všemi 9 collections** (zvolené) — secure-by-default + viditelný surface.
+3. **Permissive Day 1** (`if true`) — rychlé prototyping, ale nikdy nesmí dorazit na produkci.
+
+**Proč skeleton:**
+1. **Visibility surface** — hodnotitel hned vidí, jaký data model plánujeme a s jakými právy.
+2. **Less chance to forget** — Day 2 přijde, kostra je už tu, jen vyplníme `if false` → konkrétní pravidla.
+3. **Komentáře v helper funkcích** (uvnitř souboru, zakomentované) ukazují Day 2 plan předem.
+
+**Trade-off:** Víc kódu v souboru hned. Nikomu to neškodí.
+
+---
+
+### D-007 — `firebase-tools` jako root devDep (NE globální install)
+
+**Kontext:**
+Standard tutoriálů: `npm install -g firebase-tools`.
+
+**Proč devDep:**
+1. **Reprodukovatelnost.** Verze v `package-lock.json` = hodnotitel získá identickou Firebase CLI po `npm install`.
+2. **Žádný globální systémový rošť** na uživatelově stroji.
+3. **CI/CD** by stejně lokálně instalovalo, takže konzistence dev = CI.
+4. **Žádný conflict** s případnou jinou globální verzí na uživatelově stroji.
+
+**Trade-off:** `npx firebase ...` místo `firebase ...`. Drobnost.
+
+---
+
+### D-008 — Docker compose s anonymními volumes pro `node_modules`
+
+**Kontext:**
+Standard Docker compose bind-mountuje celý projekt do kontejneru. Problém: na Windows hostu `npm install` produkuje Windows-specific binárky (`esbuild`, `swc`, případně `sharp`), které v Linux kontejneru selžou.
+
+**Řešení:**
+Bind-mount celý repo **kromě** `node_modules` — anonymní volume přebije pro každý workspace:
+```yaml
+volumes:
+  - .:/workspace
+  - /workspace/node_modules
+  - /workspace/web/node_modules
+  - /workspace/functions/node_modules
+```
+
+Kontejner si při prvním startu udělá vlastní `npm install` pro Linux/glibc, který přetrvá v anonymous volume mezi `docker compose up/down` (dokud `docker compose down -v`).
+
+**Trade-off:** První start je pomalejší (kontejner si musí udělat `npm install` = ~30–60 s), ale následující rychlé. Workaround standard v Node + Docker světě.
+
+---
+
+### D-009 — Pre-cache Firebase emulator JARs do Docker image
+
+**Kontext:**
+`firebase emulators:start` chce stáhnout `firestore-emulator-*.jar` + UI assets při prvním běhu — ~70 MB navíc na cold start (~30 sekund).
+
+**Proč:**
+Cold start by zdržoval každé `docker compose up` (pokud volume s cache nemáme, nebo ji uživatel `prune` smazal). Stahnu si JARy během `docker build` v `RUN firebase setup:emulators:firestore` + `firebase setup:emulators:ui`. První `docker compose up` po `docker compose build` startuje za sekundy.
+
+**Trade-off:** Build image trvá déle (~2 min), image je větší (~100 MB extra). Akceptovatelné pro local-only — production nedeployujeme custom image.
+
+---
+
+### D-010 — Cloud Functions runtime = Node 22, region `europe-west3`, maxInstances 10
+
+**Runtime 22:**
+Latest LTS, který Firebase Functions Gen2 podporuje (k 2026-05). Node 24 zatím není v Gen2 runtime.
+
+**Region `europe-west3` (Frankfurt):**
+Nejnižší latence pro klienty v ČR (Frankfurt → Praha ~40 ms). GDPR-friendly (EU data residency). Salon je v ČR, klienti taky, žádné multi-region overhead.
+
+**maxInstances 10:**
+Defenzivní cap proti runaway cost. Reálný salon nemá 10 paralelních rezervací — 10 je dostatečné s rezervou. Pokud někdo zneužije veřejný `createBooking` endpoint a pošle 1 000 req/s, dostane 429 místo Firebase faktury za $300.
+
+---
+
+### D-011 — ESM v Functions (`"type": "module"` + tsconfig `NodeNext`)
+
+**Kontext:**
+Cloud Functions historicky byly CommonJS. Gen2 + Node 22 ale nativně podporují ESM.
+
+**Proč ESM:**
+1. **Čistší importy** (`import { x } from './y.js'` místo `const { x } = require('./y')`).
+2. **Lepší tree-shaking** i v server kontextu (Gen2 build dělá dependency analysis).
+3. **Konzistence s `web/`** (Vite je ESM-only).
+4. **Future-proof** — Node ekosystém masivně migruje na ESM.
+
+**Trade-off:** Cesty v importech musí mít `.js` extension i pro `.ts` zdroj (NodeNext quirk). Snadno se na to zapomíná; ESLint plugin `eslint-plugin-import` to chytá.
+
+---
+
+*(Day 2 a další záznamy přibudou níže.)*

@@ -141,3 +141,16 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 .vite/
+
+# --- Project-specific additions (hair-salon-booking) ---
+
+# Claude Code workspace settings (per-machine, contains permission cache)
+.claude/
+
+# Firebase emulator debug logs (incl. rotated .log.1, .log.2)
+firebase-debug.log*
+firestore-debug.log*
+
+# OS-generated files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,35 @@
+# Dockerfile.emulator
+#
+# Custom image for Firebase emulators:
+#   - node:22-bullseye-slim base (matches Cloud Functions Gen2 runtime)
+#   - OpenJDK 17 JRE (Firestore + Pub/Sub emulators are JAR files)
+#   - firebase-tools 15 installed globally
+#   - emulator JARs pre-downloaded into the image
+#
+# Why pre-download:
+#   `firebase emulators:start` lazy-downloads ~70 MB of JARs on first
+#   run (Firestore + UI). Doing it at build time means every
+#   `docker compose up` starts in seconds, not 30+.
+
+FROM node:22-bullseye-slim
+
+# JRE — apt install is small (~80 MB) and matches what Firebase
+# emulators expect. default-jre-headless on Bullseye = OpenJDK 17.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+      default-jre-headless \
+      ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Firebase CLI — pin major to keep emulator behavior reproducible.
+RUN npm install -g firebase-tools@15
+
+# Pre-cache emulator JARs.
+# Files land in /root/.cache/firebase/emulators inside the image.
+RUN firebase setup:emulators:firestore && \
+    firebase setup:emulators:ui
+
+# Workdir matches the bind-mount target in docker-compose.yml.
+WORKDIR /workspace
+
+# Default command — docker-compose overrides with --project flag.
+CMD ["firebase", "emulators:start"]

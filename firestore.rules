@@ -1,0 +1,79 @@
+rules_version = '2';
+
+// ============================================================
+// Firestore Security Rules — Day 1 skeleton.
+//
+// Secure-by-default: every collection denies read/write until
+// Day 2, where the `if false` placeholders get replaced with
+// real auth/role logic. The structure here mirrors the full
+// data model so the surface is visible at a glance.
+//
+// Why secure-by-default for Day 1:
+//   The local emulator is permissive without rules, but the moment
+//   we touch the live Firestore (even for seed), open rules would
+//   expose customer PII. Better to fail-closed everywhere and
+//   selectively open in Day 2 than to forget a collection.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // --- Helper functions (Day 2 will activate) ---
+    // function isAuthenticated() { return request.auth != null; }
+    // function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
+    // function hasRole(r) { return isAuthenticated() && userDoc().role == r; }
+    // function isOwner() { return hasRole('owner'); }
+    // function isStaff() { return hasRole('owner') || hasRole('receptionist') || hasRole('stylist'); }
+    // function stylistOwnsBooking(stylistId) { return hasRole('stylist') && userDoc().linkedStylistId == stylistId; }
+
+    // services/{id} — Day 2 target: PUBLIC READ, OWNER WRITE
+    match /services/{id} {
+      allow read, write: if false;
+    }
+
+    // stylists/{id} — Day 2 target: PUBLIC READ, OWNER WRITE
+    match /stylists/{id} {
+      allow read, write: if false;
+    }
+
+    // absences/{id} — Day 2 target: STAFF READ, OWNER WRITE
+    match /absences/{id} {
+      allow read, write: if false;
+    }
+
+    // bookings/{id} — Day 2 target: PUBLIC READ (no PII), CF-only WRITE
+    match /bookings/{id} {
+      allow read, write: if false;
+    }
+
+    // bookingCustomers/{bookingId} — Day 2 target: STAFF ONLY, CF-only WRITE (PII)
+    match /bookingCustomers/{bookingId} {
+      allow read, write: if false;
+    }
+
+    // customerProfiles/{phoneHash} — Day 2 target: STAFF ONLY (PII aggregates)
+    match /customerProfiles/{phoneHash} {
+      allow read, write: if false;
+    }
+
+    // users/{uid} — Day 2 target: self-read, OWNER read/write
+    match /users/{uid} {
+      allow read, write: if false;
+    }
+
+    // salonSettings/{id} — Day 2 target: PUBLIC READ for /main, OWNER WRITE
+    match /salonSettings/{id} {
+      allow read, write: if false;
+    }
+
+    // notifications/{id} — Day 2 target: STAFF READ, CF-only WRITE
+    match /notifications/{id} {
+      allow read, write: if false;
+    }
+
+    // Default deny — anything not matched above
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

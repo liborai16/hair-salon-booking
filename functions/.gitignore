@@ -1,0 +1,5 @@
+# Compiled TypeScript output
+lib/
+
+# Per-workspace node_modules (rare with hoisting, defensive)
+node_modules/
