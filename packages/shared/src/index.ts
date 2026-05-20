@@ -9,3 +9,4 @@
 
 export * from "./types.js";              // Firestore document shapes
 export * from "./firestore-helpers.js";  // Timestamp <-> Date converters
+export * from "./pricing.js";            // pure pricing & duration logic (D-014)

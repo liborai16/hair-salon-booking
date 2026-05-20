@@ -279,4 +279,83 @@ Plánovaný `firestore-helpers.ts` poskytuje:
 
 ---
 
-*(Day 2 a další záznamy přibudou níže.)*
+## Day 2 — 2026-05-20
+
+### D-014 — Pricing & duration logika v `@hsb/shared` (pure functions); server je autorita ceny
+
+**Kontext:**
+`createBooking` (Cloud Function, Day 2) zapisuje `bookings/{id}.totalPrice` a
+`endAt`. Obojí **nesmí přijít od klienta**: kdyby klient posílal cenu, POST-nul by
+`totalPrice: 1` a objednal barvení za korunu; kdyby posílal `endAt`, zkrátil by
+si dobu a obsadil slot, který reálně přetéká do cizí rezervace. Server proto cenu
+i délku **přepočítá sám** z autoritativních dat (`services`, `stylists`) uvnitř
+transakce.
+
+Současně web (booking flow, Day 3) potřebuje **týž výpočet** pro živý náhled ceny
+a času, než klient potvrdí — jinak by odhad na webu neseděl s finální částkou.
+
+Otázka: kam tu čistou logiku umístit, aby ji functions (autoritativně) i web
+(náhled) sdílely bez duplikace?
+
+**Alternativy:**
+1. **A — Lokálně ve `functions/src/domain/`.** Web by si Day 3 udělal vlastní kopii.
+   Drift: dvě implementace téhož pricingu se časem rozejdou (jeden přidá sezónní
+   akci, druhý ne) → odhad na webu začne lhát oproti účtence ze serveru.
+2. **B — Inline přímo v `createBooking`.** Nejde testovat izolovaně a web nemá co
+   importovat pro náhled — takže by stejně vznikla druhá implementace (= problém A).
+3. **C — Pure functions v `@hsb/shared`** (zvolené). Jedna definice, functions i web
+   importují přes `@hsb/shared`.
+
+Uvnitř C jsme rozlišili dvě sub-varianty:
+- **C1 (zvolené)** — pure functions + explicitní pravidlo „server je autorita".
+- **C2 (future work)** — pricing jako *data* v `salonSettings`, majitelka mění ceny
+  bez deploye (viz Future work).
+
+**Proč C / C1:**
+1. **Žádný drift.** Multiplikátory (`LEVEL_MULTIPLIER`) a faktory délky existují
+   na jednom místě; změna se propíše do serveru i náhledu zároveň. A i B mají dvě
+   kopie, které se rozejdou.
+2. **Navazuje na D-013.** D-013 zavedl `shared/` jako SDK-agnostický core
+   (žádný `firebase-admin` ani `firebase` import). `pricing.ts` je pure (žádné I/O,
+   žádný `Date.now()`), takže do téhle vrstvy patří — pricing je doménové pravidlo,
+   ne infrastruktura.
+3. **Testovatelnost.** Pure funkce bez Firestore lze pokrýt unit testy bez emulátoru
+   (plánováno Day 5, scope item 17).
+4. **Pravidlo autority je součást rozhodnutí, ne detail.** Server vždy přepočítá
+   z Firestore; klient cenu nikdy nediktuje. Sdílený kód totiž svádí k úvaze „klient
+   spočítal totéž co server, tak jeho ceně věřme" — to je bezpečnostní díra. Kód
+   sdílíme proto, aby se *odhad shodoval s realitou* (UX), ne aby se klientův výsledek
+   stal závazným. Runtime autorita zůstává na serveru.
+
+**Defensive rounding (vzniklo při review tohoto commitu):**
+První verze `computeServiceDuration` zaokrouhlovala na 15 min i krátké vlasy. To
+zavádělo skrytý předpoklad „všechny délky v seedu jsou násobky 15". Scénář, který
+by ho porušil: salon přidá „Express barvu" s délkou 25 min → výpočet by ji tiše
+nafoukl na 30. Oprava: pro `factor === 1.0` (short, fallback) vracíme **původně
+zadanou hodnotu beze změny**; zaokrouhlujeme nahoru jen *dopočítané* medium/long. Důsledek
+rozhodnutí: vynucování 15-min gridu patří do slot algoritmu (Day 3 `availability.ts`),
+ne do výpočtu délky — služba reálně trvá 25 min a slot algoritmus s tím musí umět
+pracovat (ne-`barveni` služby vracejí raw délku tak jako tak). Tahle separace je
+zaznamenaná přímo v komentáři kódu jako forward reference na Day 3.
+
+**Trade-off:**
+- **Cena:** ~20 min předtažení kousku Day 3 (pure pricing) do Day 2. Web na Day 3
+  logiku už jen zkonzumuje a obalí UI.
+- **Benefit:** nulový drift mezi serverem a náhledem, konzistence vrstvení s D-013.
+
+**Future work** (→ README §8 „Co bych v produkci udělal jinak"):
+- **Pricing jako data v `salonSettings`** (varianta C2) — majitelka edituje ceny,
+  multiplikátory i akce přes admin UI bez deploye. V MVP je necháváme v kódu,
+  protože pravidla jsou zatím stabilní a data-driven varianta přidává validační
+  a migrační vrstvu nad rámec case study.
+- **Per-service medium/long délky** místo jednotného faktoru `1.0 / 1.5 / 2.0` —
+  reálné barvení neškáluje lineárně se stejným poměrem napříč službami.
+
+**Souvislost — deploy:** jakmile `functions/` reálně importují `@hsb/shared` za
+běhu (`toFirestore` + nově `pricing`), je třeba shared dostat do balíčku Cloud
+Functions při deployi. To je samostatné rozhodnutí → **viz D-015** (esbuild
+bundling, Task 4 Bloku B). V tomto commitu se neimplementuje.
+
+---
+
+*(D-015+ přibudou níže.)*
