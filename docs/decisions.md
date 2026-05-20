@@ -215,8 +215,16 @@ Cloud Functions historicky byly CommonJS. Gen2 + Node 22 ale nativně podporují
 5. **Compose-friendly.** `shared/` nemá runtime deps, jen TypeScript zdrojáky. `npm install` ho hoistne stejně jako jiné dev deps, žádný extra prostor v Docker image. Žádný build step v MVP (TS resolution dělá importující workspace).
 
 **Trade-off:**
-- Trojhlavá monorepo struktura = nenulový cognitive overhead pro nového čtenáře. Mitigace: `README.md` sekce 2 (architektura) tu rozdělení popíše.
-- Pokud bychom někdy chtěli `shared/` publikovat jako standalone npm balíček (např. otevření kódu komunitě), museli bychom přidat build step. V monorepu ale žije jako čistý "TypeScript source" workspace.
+
+1. **Source-only s direct `.ts` import: zvážen, ale zamítnut.** Naivní řešení by bylo nechat `shared/` jako pure TypeScript zdroj (`main: ./src/index.ts`). Vite (web) by to bez problému vyřešil díky internímu TS resolveru. **Ale Cloud Functions runtime nemá TS support** — Firebase deploy by uploadnul `.ts` soubory a Node runtime v cloudu by spadl při prvním `import` (buď `Cannot find module @hsb/shared`, nebo `Unexpected token` z parseru). Projevilo by se to až Day 6 při production deploy, kdy je pozdě cokoli architektonicky předělávat. Lepší přijmout build step v Day 2 než hasit v poslední den.
+
+2. **Zvolené řešení: build step `tsc` → `dist/` + `tsc --watch` v dev módu.** `shared/package.json#exports` ukazuje na `dist/index.js` (runtime) + `dist/index.d.ts` (types). Web (Vite) i functions (tsc) consumeři dostanou hotový JS přes standardní Node resolution.
+
+3. **DX cena: 2 terminály v dev** — jeden s `tsc --watch` v `packages/shared/` (rekompiluje shared při každé změně typů), druhý s `docker compose up` (Vite + Firebase emulátory). Toto je **standardní monorepo workflow** (Lerna, Nx, Turborepo dělají totéž), ne specifická bolest našeho projektu. README sekce 3 to explicitně uvede.
+
+4. **Trojhlavá monorepo struktura** = nenulový cognitive overhead pro nového čtenáře. Mitigace: README sekce 2 (architektura) tu rozdělení popíše.
+
+5. **Mitigace 2 terminálů (volitelná, Day 5/6):** přidat `concurrently` nebo `npm-run-all` jako root devDep a vystavit `npm run dev:all`, který spojí oba procesy do jednoho výstupu. Pro Day 2 zatím odložené — chceme nejdřív base workflow stabilní.
 
 **Implementační kroky (Day 2 ráno):**
 1. Scaffold `packages/shared/{package.json, tsconfig.json, src/types.ts, src/firestore-helpers.ts}`.
@@ -224,6 +232,50 @@ Cloud Functions historicky byly CommonJS. Gen2 + Node 22 ale nativně podporují
 3. Importní alias `@hsb/shared` přes `package.json#name` (preferovaně) — TS resolver to zvládne sám díky NodeNext modulu.
 4. Migrovat `functions/src/index.ts` na importy z `@hsb/shared` (až budou existovat handlery).
 5. Verifikovat během `npm run build` ve `web/` i ve `functions/`.
+
+---
+
+### D-013 — Firestore `Timestamp` vs JS `Date` v shared typech: `Date` + helpers na boundary
+
+**Kontext:**
+`packages/shared/src/types.ts` definuje 9 doménových interfaces, z nichž téměř všechny obsahují časová pole (`startAt`, `endAt`, `createdAt`, `updatedAt`, `lastVisitAt`, `lastNoShowAt`, `sentAt`). Otázka: jaký TypeScript typ pro tyto fields?
+
+Komplikace: Firestore má vlastní `Timestamp` typ, ale **různý mezi server a client SDK** (`firebase-admin/firestore` vs. `firebase/firestore`). Strukturálně podobné, ale TypeScript je nevidí jako kompatibilní třídy.
+
+**Alternativy:**
+
+1. **A — Custom strukturální typ `FirestoreTimestamp`** s `seconds`, `nanoseconds`, `toDate()`, `toMillis()`. Matchne oba SDK díky structural typing. Hack-ish, mate čtenáře, doménový kód musí psát `dt.toDate()` všude.
+
+2. **B — `Date` v shared typech, konverze přes `firestore-helpers.ts` na hranici** (zvolené). Helpers `fromFirestore(snapshot)` a `toFirestore(obj)` mapují `Timestamp ↔ Date` na boundary mezi SDK a doménovou vrstvou.
+
+3. **C — Generic parameter:** `interface Booking<TS = Date> { startAt: TS; ... }`. Flexibilní, ale verbose a každý consumer musí specifikovat typ.
+
+**Proč B:**
+
+1. **SDK-agnostická doménová vrstva.** Kdybychom někdy přesedlali na PostgreSQL, Supabase, Drizzle ORM, doménový kód (`availability.ts`, `pricing.ts`, `reports.ts`) zůstane beze změny — jen `firestore-helpers.ts` se přepíše. Toto je **hexagonální architektura** (Ports & Adapters), kde `shared/` je core a SDK je adapter.
+
+2. **`Date` je JS standard.** `dateA.getTime() - dateB.getTime()`, `new Date(2026, 0, 1)`, `Intl.DateTimeFormat`, `date-fns` — všechno přirozeně pracuje s `Date`. Domain code pak vypadá idiomaticky, ne jako Firestore-specific syntax.
+
+3. **Explicit boundary pattern signaluje seniority.** Hodnotitel uvidí `fromFirestore(snapshot)` v `web/src/lib/firestore.ts` a `toFirestore(booking)` v Cloud Function, pozná pattern okamžitě.
+
+4. **TypeScript chytá kontaminace.** Pokud někdo zapomene konvertovat a předá raw `snapshot.data()` (s Timestamp poli) do funkce očekávající Booking (s Date poli), kompilátor hlásí chybu. Bez B by chyba byla runtime-only.
+
+5. **Vyhneme se `instanceof` trapům.** Když shared type říká `Timestamp` z jednoho SDK, ale runtime to je `Timestamp` z druhého, `instanceof Timestamp` selže. S `Date` je `instanceof Date` univerzální.
+
+**Trade-off:**
+
+- **Cena: vždy konvertuj na hranici.** Nelze předat raw Firestore data do doménového kódu bez `fromFirestore`. **To je plus**, ne minus — odhalí to fakt, že DB readu nelze 100% věřit (data může mít legacy shape, missing fields atd.).
+- **`firestore-helpers.ts` přidává soubor k údržbě.** Akceptovatelné — pravděpodobně 50–100 řádků utility kódu, dvě klíčové funkce + type guards.
+- **Helpers musí duck-typeem detekovat oba SDK Timestamp typy** (`'seconds' in v && 'nanoseconds' in v`). Drobná implementační složitost, izolovaná v jednom souboru.
+
+**Implementace v Day 2 ráno (po types.ts):**
+
+Plánovaný `firestore-helpers.ts` poskytuje:
+1. `fromFirestore<T>(snapshot, deserializer)` — generic helper, vrací typed objekt s `Date`.
+2. `toFirestore<T>(obj, serializer)` — opačný směr, vrací plain object s `Timestamp` pro Firestore.
+3. `tsToDate(ts)` — utility pro `Timestamp → Date` (handles both server + client SDK).
+4. `dateToTs(date)` — utility pro `Date → Timestamp` (uses admin SDK if available, fallback client).
+5. Type guards: `isFirestoreTimestamp(v)`, `isDate(v)`.
 
 ---
 

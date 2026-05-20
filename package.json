@@ -4,8 +4,9 @@
   "private": true,
   "description": "Case study: rezervační systém pro kadeřnictví (Vite + React + Firebase)",
   "workspaces": [
-    "web",
-    "functions"
+    "functions",
+    "packages/shared",
+    "web"
   ],
   "scripts": {
     "dev": "npm run dev --workspace=web",
