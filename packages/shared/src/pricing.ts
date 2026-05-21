@@ -14,7 +14,7 @@
  *     trusted on write; the server recomputes (see D-014).
  *
  * Pure: no Firestore, no I/O, no Date.now(). Fully unit-testable in
- * isolation (Day 3 adds the test suite).
+ * isolation (Day 5 adds the test suite — scope item 17).
  */
 
 import type { Service, Stylist, ServiceLengthMap } from "./types.js";
@@ -182,3 +182,5 @@ export function computeTotalPrice(
     0,
   );
 }
+
+// TODO(day-5): unit tests for pure functions — see scope item 17 / D-014

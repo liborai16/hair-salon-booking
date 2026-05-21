@@ -358,4 +358,62 @@ bundling, Task 4 Bloku B). V tomto commitu se neimplementuje.
 
 ---
 
-*(D-015+ přibudou níže.)*
+*(D-015 — esbuild bundling @hsb/shared do functions deploye — bude doplněn
+s implementací v Task 4; viz princip „každý decision record jede se svou
+implementací", L-007.)*
+
+---
+
+### D-016 — Overlap utilita v `@hsb/shared` (pure `availability.ts`); příprava slot algoritmu
+
+**Kontext:**
+`createBooking` (Cloud Function, **Day 2 BLOK B — právě teď**, ne Day 3) musí
+uvnitř Firestore transakce ověřit, že nově vznikající rezervace nekoliduje s žádnou
+existující rezervací téhož stylisty (slot re-check, race-condition safe). K tomu
+potřebuje primitivum „překrývají se dva časové intervaly?". Totéž primitivum bude
+jádrem slot-availability algoritmu na **Day 3** (frontend booking flow), který
+generuje volné sloty z `weeklyHours`, `absences`, business-hours override a
+existujících rezervací. Otázka: kam ten overlap test umístit?
+
+**Alternativy:**
+1. **A — Inline v `createBooking`.** Netestovatelné izolovaně; Day-3 slot algoritmus
+   by overlap definoval podruhé → riziko, že server a klient mají jinou představu
+   o tom, co znamená „volno" (např. půlotevřené vs uzavřené intervaly).
+2. **B — Lokálně ve `functions/src/domain/`.** Web (Day 3) k tomu nemá přístup →
+   opět druhá definice, drift (stejný problém jako u pricingu v D-014, alternativa A).
+3. **C — Nový pure soubor `packages/shared/src/availability.ts`** (zvolené). Jedna
+   definice `overlaps()`, kterou importuje transakce v `createBooking` teď i slot
+   algoritmus Day 3.
+
+**Proč C** (stejný vzor jako D-014 pro pricing):
+1. **Single source of truth pro sémantiku konfliktu.** `overlaps()` definuje
+   půlotevřené intervaly `[start, end)` jednou — serverový re-check i Day-3 generátor
+   slotů se shodnou, že back-to-back rezervace (10:00–10:30 + 10:30–11:00) nekolidují.
+   Bez sdílení by se ty dvě definice mohly rozejít.
+2. **Pure & SDK-agnostické** — navazuje na D-013/D-014: žádný Firestore import,
+   operuje na `Date`. Testovatelné bez emulátoru (TODO day-5).
+3. **Forward-compat.** Soubor je záměrně `availability.ts`, ne `overlap.ts` — Day 3
+   ho rozšíří o slot algoritmus a `overlaps()` zůstane jeho jádrem. Jeden domov pro
+   veškerou time/slot logiku.
+
+**Konkrétní use case:** `createBooking` v transakci natáhne existující `bookings`
+daného stylisty v daném dni a pro každou zavolá
+`overlaps(new.startAt, new.endAt, existing.startAt, existing.endAt)`; první `true`
+→ `HttpsError('failed-precondition', 'slot taken')`.
+
+**Trade-off:**
+- **Cena:** nový soubor v shared s jedinou funkcí může vypadat předčasně. Ale
+  `createBooking` ho potřebuje teď a Day 3 potřebuje tutéž sémantiku — není to
+  spekulace (YAGNI neplatí, druhý konzument je jistota).
+- **Benefit:** nulový drift sémantiky konfliktu mezi serverovým re-checkem a
+  klientským zobrazením volných slotů.
+
+**Future work** (→ README §8 „Co bych v produkci udělal jinak"):
+- **Buffer / úklidový čas mezi rezervacemi.** Půlotevřené intervaly teď znamenají
+  nulový odstup (back-to-back povoleno). Reálný salon může chtít konfigurovatelný
+  buffer (úklid, příprava křesla) — to by byl parametr slot algoritmu na Day 3, ne
+  změna `overlaps()`.
+
+---
+
+*(D-017+ přibudou níže.)*

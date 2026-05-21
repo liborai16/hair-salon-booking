@@ -7,6 +7,7 @@
  * server views of Firestore documents.
  */
 
-export * from "./types.js";              // Firestore document shapes
-export * from "./firestore-helpers.js";  // Timestamp <-> Date converters
+export * from "./types.js";              // Firestore document shapes (D-012)
+export * from "./firestore-helpers.js";  // Timestamp <-> Date converters (D-013)
 export * from "./pricing.js";            // pure pricing & duration logic (D-014)
+export * from "./availability.js";       // pure time-slot logic (D-016)
