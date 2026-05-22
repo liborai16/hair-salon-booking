@@ -13,3 +13,4 @@
  */
 
 export { createBooking } from "./handlers/createBooking.js";
+export { manageBookingByToken } from "./handlers/manageBookingByToken.js";
