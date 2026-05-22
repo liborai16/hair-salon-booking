@@ -416,4 +416,69 @@ daného stylisty v daném dni a pro každou zavolá
 
 ---
 
-*(D-017+ přibudou níže.)*
+### D-017 — Magic-link cancel: validace přes query-by-token (bearer capability), ne `timingSafeEqual`
+
+**Kontext:**
+`manageBookingByToken` (Cloud Function, **task #4 — implementace ZÍTRA**) má
+zrušit rezervaci z magic-linku, který klient dostal v potvrzení. Otázka: jak
+ten odkaz vypadá a jak se token validuje? Vyplavalo to v auditu po task #3,
+protože tři místa si **odporovala**:
+
+1. **Scope item 12** (CLAUDE.md + handoff): URL je **`/r/:token`** — nese jen token.
+2. **`createBooking` zápis** (`notifications.payload.magicLink`): `/r/${cancelToken}`
+   — konzistentní se scope, jen token.
+3. **`types.ts` JSDoc `cancelToken`** (psáno dopoledne, před finalizací doručení):
+   *„Validated … using `crypto.timingSafeEqual` to prevent timing attacks."*
+
+Bod 3 se s body 1–2 **nezkombinuje**: když URL nese jen token (bez `bookingId`),
+handler neumí adresně načíst `bookingCustomers/{id}` a constant-time porovnat
+uložený token s přijatým — nemá doc ID. Musí token **vyhledat**.
+
+**Alternativy:**
+1. **A — `/r/:bookingId/:token` + `timingSafeEqual`.** Handler načte
+   `bookingCustomers/{bookingId}` a constant-time porovná. Zachová formulaci z
+   `types.ts`, ALE **poruší scope item 12** (URL má být `/r/:token`). Navíc
+   `timingSafeEqual` tu řeší neexistující hrozbu (viz níže). Zamítnuto.
+2. **B — query-by-token** (zvolené). URL zůstává `/r/:token`. Handler udělá
+   `bookingCustomers.where('cancelToken','==',token)` (single-field index,
+   Firestore vytváří automaticky → žádný composite). 0 dokumentů → neplatný/
+   spotřebovaný token; 1 dokument → token JE oprávnění (bearer capability),
+   pokračuj na zrušení.
+
+**Proč B:**
+1. **Konzistence se scope.** Body 1 a 2 už spolu ladí; mimo krok je jen JSDoc
+   v `types.ts` — to opravíme (viz Důsledek). Nejmenší drift.
+2. **`timingSafeEqual` tu nechrání před ničím.** Hrozba, kterou řeší, je
+   byte-po-byte timing leak při porovnání **secret↔input v aplikačním kódu** s
+   early-exit `===`. U query-by-token žádné takové porovnání v našem kódu není —
+   match dělá Firestore index. Časový postranní kanál Firestore lookupu není
+   prakticky využitelný a není to náš code path.
+3. **Entropie už je obrana.** `cancelToken` = 256 bit (`randomBytes(32)`,
+   base64url), bearer capability. Brute-force uhádnutí je infeasible — to je
+   skutečná bariéra, ne způsob porovnání.
+4. **Jednodušší a kratší URL.** `/r/:token` bez `bookingId` je čistší veřejný
+   odkaz; `bookingId` (jinak PUBLIC-READ, ne tajné) v URL nic nepřidává.
+
+**Trade-off:**
+- **Cena:** `cancelToken` se stává dotazovatelným polem (Firestore single-field
+  index). Triviální; collection je STAFF-ONLY + admin SDK obchází rules.
+- **Benefit:** kontrakt sedí napříč scope/kódem/dokumentací; žádná falešná
+  bezpečnostní ceremonie (`timingSafeEqual` na místě, kde nedává smysl).
+
+**Důsledek (implementace v task #4, NE v tomto doc commitu):**
+- `manageBookingByToken` validuje query-by-token; **`timingSafeEqual`
+  neimplementovat** — je obsoletní vůči tomuto designu.
+- **Opravit `types.ts` JSDoc `cancelToken`** (řádky o `timingSafeEqual`), ať
+  popisuje skutečný mechanismus (bearer-capability indexed lookup). Tahle oprava
+  jede **atomicky v task #4 commitu** spolu s implementací — D-017 zůstává
+  doc-only rozhodnutí *před* kódem (architecture-first).
+
+**Future work** (→ README §8):
+- **Jednorázovost / expirace tokenu.** Teď je token platný do zrušení rezervace.
+  Produkce může chtít TTL nebo invalidaci po prvním použití (token rotation).
+- **Rate-limit na `/r/:token`** proti hádání (byť 256 bit dělá brute-force
+  infeasible) — společně s App Check, viz README §6 limitace.
+
+---
+
+*(D-018+ přibudou níže.)*
