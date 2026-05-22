@@ -9,6 +9,7 @@
       "codebase": "default",
       "runtime": "nodejs22",
       "predeploy": [
+        "npm --prefix packages/shared run build",
         "npm --prefix \"$RESOURCE_DIR\" run lint",
         "npm --prefix \"$RESOURCE_DIR\" run build"
       ]

@@ -358,9 +358,132 @@ bundling, Task 4 Bloku B). V tomto commitu se neimplementuje.
 
 ---
 
-*(D-015 — esbuild bundling @hsb/shared do functions deploye — bude doplněn
-s implementací v Task 4; viz princip „každý decision record jede se svou
-implementací", L-007.)*
+### D-015 — Deploy `@hsb/shared` do Cloud Functions: esbuild bundle (inline) + hard-remove z manifestu
+
+*(Founded Day 2 jako placeholder s D-014; finalizováno Day 3 — 2026-05-22, při
+implementaci task #5 BLOK B. Princip „každý decision record jede se svou
+implementací", viz L-007.)*
+
+**Kontext:**
+`functions/` reálně importují `@hsb/shared` za běhu (`toFirestore`, `pricing`,
+`overlaps`, typy). V `functions/package.json` to bylo deklarováno jako
+`"@hsb/shared": "*"`. Problém se projeví **až při `firebase deploy`**, ne
+lokálně: Firebase zabalí **jen složku `functions/`** + její `package.json`,
+nahraje to do Cloud Build a tam spustí `npm install`. Záznam `"@hsb/shared": "*"`
+ukazuje na náš **privátní workspace balíček, který na npm registry neexistuje**
+→ `npm install` skončí 404 → **deploy spadne**. Lokálně to nikdy nevybuchne,
+protože tam `@hsb/shared` rezolvuje přes workspace symlink — který v cloudu není.
+
+**Empirická zjištění (ověřeno před rozhodnutím, ne z paměti):**
+1. `node_modules/@hsb/shared` je **symlink → `packages/shared`**, a sedí
+   v **root** `node_modules`, ne ve `functions/node_modules`. npm ho vytváří
+   kvůli `workspaces` poli v root `package.json`, **nezávisle** na tom, jestli
+   ho `functions/package.json` deklaruje jako dependency. → Lze ho z functions
+   manifestu odebrat, aniž se rozbije lokální resolution (jde přes hoisting).
+2. `packages/shared/package.json`: `main`/`exports` → **`dist/`** (ne `src/`).
+   Takže esbuild i `tsc` čtou shared z `packages/shared/dist/` → dist musí být
+   postavený **před** functions buildem.
+3. `functions/package.json` má `"type": "module"` → bundle musí být **ESM**.
+
+**Alternativy (5 zvážených):**
+1. **A — `file:../packages/shared`.** Firebase balí jen `functions/`;
+   sourozenecká cesta `../packages/shared` se do balíčku nedostane → cloud
+   `npm install` ji nenajde → spadne stejně. Zamítnuto.
+2. **B — `npm pack` shared → `.tgz` uvnitř `functions/` + `file:./shared.tgz`.**
+   Tarball by se nahrál a fungoval. Ale: ruční verzování, riziko **stale
+   tarballu** (zapomenu přebalit po změně shared) a binární artefakt ve verzování.
+   Zamítnuto ve prospěch single-step bundle.
+3. **C — `bundledDependencies`.** Křehké v kombinaci s workspace symlinky;
+   `npm pack` se symlinkovaným workspace dep produkuje nepředvídatelný výstup.
+   Zamítnuto.
+4. **D — Nechat `@hsb/shared` v manifestu + „strip" v `firebase.json` predeploy
+   hooku.** Hook by za běhu deploye **mutoval verzovaný `functions/package.json`**
+   (odebral záznam z toho, co se zabalí) a post-deploy ho vrátil. Zamítnuto:
+   znamenalo by to, že **stav repa ≠ to, co se reálně nahraje** — přesně ten druh
+   skryté divergence, co kousne za měsíc. Navíc mutace tracked souboru during
+   deploy = špinavý git tree / race / křehký cleanup. Získali bychom jen
+   „dokumentační" přítomnost shared v manifestu, kterou stejně nahradí komentář
+   v esbuild configu + tenhle záznam. Imperativní mutace artefaktu prohrává nad
+   deklarativním stavem.
+5. **E — esbuild bundle (inline shared) + hard-remove z manifestu** (zvolené).
+   esbuild „zalije" `@hsb/shared` přímo do výstupního `lib/index.js`; za běhu už
+   není potřeba jako balíček. Z `functions/package.json` se `@hsb/shared`
+   **úplně odebere**, takže cloud `npm install` ho nikdy nehledá.
+
+**Proč E:**
+1. **Jediný self-contained artefakt** + zachované source maps + tree-shaking.
+   Žádné externí cesty, žádné tarbally, žádná deploy-time mutace.
+2. **Hard-remove je robustní za všech okolností.** Spoléhat na „cloud neinstaluje
+   `devDependencies"` by vázalo deploy na chování Cloud Build buildpacku, které
+   **lokálně nedokážu ověřit** — a chyba by se projevila až při Day 6 deployi.
+   Když záznam v manifestu **není vůbec**, cloud ho nikdy nezkusí, bez ohledu na
+   dev/prod install chování. Deklarativní = stav repa je stav deploye.
+3. **Nic neztrácíme na DX.** Lokální build (`tsc --noEmit` typecheck i esbuild
+   emit) si shared najde přes workspace symlink (empirické zjištění #1).
+4. **Bundle je bezpečný k inlinování** — `@hsb/shared` je SDK-agnostický pure kód
+   (D-013), žádný `firebase-admin` uvnitř, žádné native závislosti.
+
+**Konkrétní konfigurace bundlu (`functions/esbuild.config.mjs`):**
+- **`format: 'esm'`** — protože `functions/package.json` má `"type": "module"`
+  (empirické #3). Mismatch formátu vůči runtime resolveru = crash při importu.
+- **`platform: 'node'`, `target: 'node22'`** — Gen2 cloud runtime (D-010).
+- **`sourcemap: true`** (external `.js.map`, ne inline — menší runtime soubor,
+  mapa oddělená). **Caveat (důležitý):** tenhle flag jen zajistí, že `.map`
+  **existuje a balí se**. Node aplikuje source map na stack trace **jen
+  s `--enable-source-maps`**, což **není default**. Bez něj cloud log ukáže
+  pozice v bundlu bez remapování na `shared/src/`. → Aktivace runtime flagu
+  (`--enable-source-maps` přes env / `NODE_OPTIONS` na Gen2 funkci) je
+  **explicitní Day 6 deploy follow-up** (viz Future work + README §6) — na Day 3
+  ji nelze ověřit (žádný deploy neběží), takže ji odkládáme s tvrdým záznamem,
+  ne s falešným pocitem hotového. Mapa se balí už teď, takže aktivace na Day 6
+  funguje retroaktivně.
+- **`external`**: `firebase-admin` (+ `firebase-admin/*`), `firebase-functions`
+  (+ `firebase-functions/*`), `zod`. Firebase SDK dodává cloud runtime a má
+  native/dynamic require (špatně se bundluje); `zod` je běžný npm balíček, který
+  cloud `npm install` doplní z `dependencies`. **Inlinuje se jen `@hsb/shared`.**
+- **Resolution shared = `dist`** (empirické #2) → `firebase.json` predeploy staví
+  `packages/shared` jako **první krok**, před lint + build functions.
+
+**Build workflow:**
+- `functions` build script: **`tsc --noEmit && node esbuild.config.mjs`**.
+  `tsc --noEmit` drží typecheck záruku (strict, `noUnusedLocals`, NodeNext
+  import correctness) bez emitu; esbuild dělá emit = bundle do `lib/index.js`.
+- `firebase.json` predeploy: `[shared build, functions lint, functions build]`.
+
+**Trade-offs:**
+- **+** Jeden artefakt, menší deploy, source maps (po Day 6 aktivaci), tree-shaking.
+- **−** Přidaná build závislost (esbuild) + dvoukrokový build (typecheck → emit).
+- **−** `lib/index.js` je nově **bundle**, ne per-file `tsc` output. `build:watch`
+  (`tsc --watch`) pro lokální iteraci dál emituje per-file (resolve přes symlink) —
+  rozdílný tvar `lib/` podle posledního skriptu, ale `lib/` je gitignored a
+  predeploy vždy přebundluje, takže deploy artefakt je deterministický.
+
+**Důsledek (implementace task #5):**
+- `functions/package.json`: `+esbuild` (devDep), **`-@hsb/shared`** (z deps úplně),
+  build script → `tsc --noEmit && node esbuild.config.mjs`.
+- Nový `functions/esbuild.config.mjs` (viz konfigurace výše, s komentářem proč
+  hard-remove + co je external).
+- `firebase.json` predeploy: shared build jako první krok.
+- **Test bundlu** (povinný, ne „compiles"): postavit a ověřit, že (a) `lib/index.js`
+  reálně obsahuje inlinovaný shared kód, (b) nikde v bundlu nezůstal bare import
+  `from "@hsb/shared"`, (c) external importy (`firebase-*`, `zod`) v bundlu zůstaly.
+
+**Known risk — `$RESOURCE_DIR` na Windows (deferováno, verify Day 6):**
+Predeploy kroky `lint` a `build` functions používají Firebase CLI substituční
+proměnnou `$RESOURCE_DIR`. Chování na Windows je k Day 3 **neověřené** (první
+deploy je Day 6). Pokud expanze na Windows selže: triviální oprava — nahradit
+2× `$RESOURCE_DIR` za `functions`. Verifikace při Day 6 prvním deployi.
+Poznámka: krok shared-build schválně používá relativní `packages/shared`
+(sémanticky **není** pod functions resource), takže je `$RESOURCE_DIR`-free
+a vůči případnému problému imunní. Preempt-fix všech tří kroků teď zamítnut
+jako scope creep (D-015 ≠ path refactor) — dokumentace > preempce.
+
+**Future work** (→ README §6 / §8):
+- **`--enable-source-maps` v runtime** — Day 6 deploy detail, aby cloud stack
+  traces remapovaly na `shared/src/` (viz Caveat výše).
+- **Per-handler bundle splitting** — teď bundlujeme jediný `index.js` entry. Při
+  růstu počtu funkcí by per-function bundle zmenšil cold-start surface; pro 2
+  funkce zbytečné (YAGNI).
 
 ---
 
