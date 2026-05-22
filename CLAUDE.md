@@ -145,3 +145,32 @@ Pro plné obhajoby viz `docs/decisions.md`.
 - **D-009** Pre-cache Firebase emulator JARs do Docker image
 - **D-010** Cloud Functions runtime = Node 22, region `europe-west3`, maxInstances 10
 - **D-011** ESM v Functions (`"type": "module"` + tsconfig `NodeNext`)
+
+---
+
+## 5. Známé limitace a aktuální stav
+
+Developer-facing caveaty k *aktuálnímu* stavu rozpracovaného repa (ne durable
+design rozhodnutí — ta jsou v `docs/decisions.md`; ne dlouhodobé limitace MVP —
+ty půjdou do `README §6` na Day 6). Tahle sekce se mění, jak práce postupuje.
+
+### Runtime smoke-test gap (Day 2 BLOK B)
+
+**Stav:** Cloud Function `createBooking` (task #3) je ověřená přes `tsc` build
++ ESLint (oboje EXIT 0), ale **nikdy reálně neběžela**. `compiles ≠ runs`.
+
+**Proč:** runtime smoke-test vyžaduje předpoklady, které jsou samy o sobě další
+Day 2 tasky, zatím nehotové:
+- **seed data** (`scripts/seed.mjs` — task #5/Day 2) pro `services` + `stylists`,
+  bez kterých handler nemá co načíst,
+- **Firestore emulator** běžící (přes `docker-compose`),
+- **auth + rules** (Day 2 tasky) pro realistický happy/expectation path.
+
+**Plán:** jakmile bude seed + emulátor, provést smoke-test **obou** booking
+handlerů (`createBooking` + `manageBookingByToken`) najednou — happy path
+(vznik rezervace + zápis 4 collections) i odmítavé cesty (obsazený slot →
+`failed-precondition`, neexistující stylista → `not-found`).
+
+**Pravidlo, které z toho plyne:** „build + lint zelené" hlásíme jako *staticky
+ověřeno*, ne jako *funguje*. Runtime verifikace je samostatný, explicitně
+trackovaný krok — nezaměňovat.

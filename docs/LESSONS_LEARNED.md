@@ -166,3 +166,42 @@ různé třídy chyb; jeden pohled míjí ty z druhé domény.
 
 **Mantra:** Architekt vidí konzistenci, implementer vidí runtime. Bug se nejčastěji
 schovává tam, kde se ty dva pohledy nepřekrývají.
+
+---
+
+### L-008: ESM import-hoisting vs. `setGlobalOptions` — side-effect config musí běžet upstream
+
+**Incident (catch v design fázi, ne až runtime):**
+Plán Day 2 BLOK B měl `setGlobalOptions({ region: "europe-west3", ... })` v
+`functions/src/index.ts`, který funkce nasazuje přes
+`export { createBooking } from "./handlers/createBooking.js"`. Při návrhu
+wiringu vyplavalo, že tohle pořadí je **chybné**: region by se nastavil **až
+poté**, co je funkce definovaná, a Cloud Function by tiše spadla na default
+`us-central1` (vysoká latence pro CZ klienty) — bez jakékoli chyby při buildu
+i deployi. Hidden regression.
+
+**Příčina (mechanika ES modulů):**
+Vyhodnocení ES modulu nejdřív projde **všechny jeho závislosti** (depth-first, v
+pořadí importů) a teprve pak spustí **tělo** modulu. A `export … from "./x"` je
+taky závislost. Takže když `index.ts` udělá
+`setGlobalOptions(); export { createBooking } from "./handlers/…"`, vyhodnotí se
+**nejdřív** modul handleru (a v něm `onCall(...)`, které čte global options) a
+**až potom** statement `setGlobalOptions()` v těle `index.ts`. Konfigurace
+přijde pozdě.
+
+**Řešení / pravidlo:**
+Side-effect konfiguraci jsme přesunuli do `functions/src/lib/firebase.ts`
+(bootstrap modul), který **každý handler importuje** kvůli `db`. Tím je
+zaručeno, že `setGlobalOptions()` proběhne *před* `onCall(...)` — bootstrap je
+závislost handleru, takže se vyhodnotí dřív než jeho tělo. `index.ts` pak jen
+re-exportuje. Důkaz a rationale jsou v JSDoc `lib/firebase.ts`.
+
+**Verifikační reflex:** u jakékoli „nastav globálně, pak definuj" konfigurace
+(region, runtime options, `dotenv`, monkeypatch, polyfill) se ptej: *je ten
+side-effect garantovaně upstream od kódu, který ho čte?* V ESM to znamená „v
+modulu, který je **importovanou závislostí**", ne „o pár řádků výš ve stejném
+souboru s re-exportem".
+
+**Mantra (princip):** Re-export evaluuje závislost před tělem modulu.
+**Akční pravidlo:** Side-effect konfigurace (region, options, monkeypatche)
+patří **upstream** — do importované závislosti, ne vedle definic, které ji čtou.
