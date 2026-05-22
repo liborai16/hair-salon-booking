@@ -164,11 +164,36 @@ export async function prepareBooking(
     }
   }
 
+  // --- Sanitize serviceLengths to the documented invariant ---
+  // Booking.serviceLengths must only carry lengths for 'barveni' services that
+  // define lengthVariants (see types.ts). The subset check above proved every
+  // key is a service in this booking; here we additionally DROP keys for
+  // services that don't use hair length, so a stored Booking can't violate its
+  // own invariant with client-supplied junk ("server is the authority" — the
+  // client doesn't decide what we persist). Pricing/duration already ignore
+  // length for such services, so this changes what we STORE, not the result.
+  const lengthCapableIds = new Set(
+    services
+      .filter((s) => s.category === "barveni" && s.lengthVariants !== undefined)
+      .map((s) => s.id),
+  );
+  let serviceLengths: ServiceLengthMap | undefined;
+  if (input.serviceLengths) {
+    const filtered: ServiceLengthMap = {};
+    for (const [id, length] of Object.entries(input.serviceLengths)) {
+      if (lengthCapableIds.has(id)) filtered[id] = length;
+    }
+    // Collapse to undefined when nothing relevant remains, so the invariant
+    // "present ⇒ at least one barveni service" holds (and no empty object is
+    // stored — which would also satisfy the Admin SDK's no-undefined rule).
+    serviceLengths = Object.keys(filtered).length > 0 ? filtered : undefined;
+  }
+
   // --- Server is the authority for duration & price (D-014) ---
   // Both are computed from authoritative Firestore data via @hsb/shared; the
   // client never sends them (strictObject in the schema rejects them outright).
-  const durationMinutes = computeTotalDuration(services, input.serviceLengths);
-  const totalPrice = computeTotalPrice(services, stylist, input.serviceLengths);
+  const durationMinutes = computeTotalDuration(services, serviceLengths);
+  const totalPrice = computeTotalPrice(services, stylist, serviceLengths);
   const endAt = new Date(startAt.getTime() + durationMinutes * MS_PER_MINUTE);
 
   // TODO(day-3): validate the slot against the stylist's WORKING HOURS,
@@ -183,7 +208,7 @@ export async function prepareBooking(
   return {
     stylist,
     services,
-    serviceLengths: input.serviceLengths,
+    serviceLengths,
     startAt,
     endAt,
     totalPrice,
