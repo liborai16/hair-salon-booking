@@ -1,5 +1,5 @@
-# Compiled TypeScript output
-lib/
+# Compiled TypeScript output (anchored: only functions/lib, NOT src/lib source dir)
+/lib/
 
 # Per-workspace node_modules (rare with hoisting, defensive)
 node_modules/

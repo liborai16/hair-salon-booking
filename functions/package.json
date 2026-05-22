@@ -19,7 +19,8 @@
   "dependencies": {
     "@hsb/shared": "*",
     "firebase-admin": "^13.0.0",
-    "firebase-functions": "^6.0.0"
+    "firebase-functions": "^6.0.0",
+    "zod": "^4.4.3"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",

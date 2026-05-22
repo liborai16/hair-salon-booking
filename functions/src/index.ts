@@ -1,20 +1,15 @@
 /**
  * Cloud Functions Gen2 — entry point.
  *
- * Day 1: skeleton with region preset only.
- * Day 2 will add:
- *   - createBooking — Firestore transaction that re-checks slot
- *     availability before commit (race-condition safe).
- *   - manageBookingByToken — magic-link self-cancel, validates
- *     cancelToken with constant-time comparison.
+ * Global function options (region europe-west3, maxInstances) and Admin SDK
+ * init live in ./lib/firebase — the bootstrap module every handler imports
+ * before defining its trigger. See that file for the ESM ordering rationale
+ * (why setGlobalOptions can't live here). This file only re-exports the
+ * deployable functions.
  *
- * Region rationale: europe-west3 (Frankfurt) — lowest latency
- * for CZ clients and salon staff.
+ * Day 2 BLOK B:
+ *   - createBooking          — transactional, race-condition-safe booking.
+ *   - manageBookingByToken   — magic-link self-cancel (next task).
  */
 
-import { setGlobalOptions } from "firebase-functions/v2";
-
-setGlobalOptions({
-  region: "europe-west3",
-  maxInstances: 10,
-});
+export { createBooking } from "./handlers/createBooking.js";
