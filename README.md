@@ -345,7 +345,7 @@ Důvod této volby (před ostatními debt-itemy v §8):
 2. **Konzistence s phoneHash D5 lift** (commit `5418ba7`) — stejný pattern (mechanical extraction pod test safety net) prokázal hodnotu single source.
 3. **Low risk** — pure type/const motion, žádný behavioral change, ověřitelné přes 57 shared tests + tsc.
 
-Detailní PR popis (kdyby se psal): viz `docs/PR_DRAFT.md` *(TBD — připravím v separate commit Day 5+).*
+Detailní PR popis — viz [`docs/PR_DRAFT.md`](docs/PR_DRAFT.md) (motivace + scope + implementation plan + risk assessment + alternatives considered + long-term context).
 
 ---
 
