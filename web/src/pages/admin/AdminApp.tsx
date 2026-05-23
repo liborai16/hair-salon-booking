@@ -4,6 +4,8 @@ import { AdminLayout } from "./AdminLayout";
 import { AdminLogin } from "./AdminLogin";
 import { DailySchedule } from "./DailySchedule";
 import { AdminWalkIn } from "./AdminWalkIn";
+import { StylistsPage } from "./StylistsPage";
+import { ServicesPage } from "./ServicesPage";
 
 /**
  * Admin routing — nested under `/admin/*` from App.tsx.
@@ -48,10 +50,7 @@ export function AdminApp() {
           path="stylists"
           element={
             <RequireAuth requireRole="owner">
-              <Placeholder
-                name="Kadeřníci"
-                hint="CRUD kadeřníků je v přípravě (Phase 3.4)."
-              />
+              <StylistsPage />
             </RequireAuth>
           }
         />
@@ -59,10 +58,7 @@ export function AdminApp() {
           path="services"
           element={
             <RequireAuth requireRole="owner">
-              <Placeholder
-                name="Služby"
-                hint="CRUD služeb je v přípravě (Phase 3.4)."
-              />
+              <ServicesPage />
             </RequireAuth>
           }
         />
