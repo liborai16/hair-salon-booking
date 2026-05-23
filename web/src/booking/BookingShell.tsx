@@ -13,16 +13,19 @@ import { SuccessStep } from "./steps/SuccessStep";
 
 /**
  * Booking flow orchestrator — useReducer-driven state machine over 4 steps:
- * services → slot → customer → confirm. Phase 2.1 ships steps 1+2 (services
- * + slot picker); steps 3+4 render a placeholder pending Phase 2.2
- * (customer form + createBooking submit).
+ * services → slot → customer → confirm → success.
  *
  * Public data (services / stylists / salonSettings) is loaded once at the
- * shell level and passed down — both step components use it. Per-stylist
- * availability data (absences + bookings) loads inside SlotStep when the
- * qualified pool changes (re-computed per service selection).
+ * shell level and passed down; per-stylist availability inside SlotStep.
+ *
+ * `minLeadTimeMinutesOverride` prop — admin walk-in (Phase 3.3) passes 0
+ * so the slot picker shows slots starting NOW. CF wrapper independently
+ * sets minLeadTime=0 for staff callers (server authoritative), but the
+ * UI must mirror so reachable slots actually render.
  */
-export function BookingShell() {
+export function BookingShell({
+  minLeadTimeMinutesOverride,
+}: { minLeadTimeMinutesOverride?: number } = {}) {
   const [state, dispatch] = useReducer(bookingReducer, initialBookingState);
   const { services, error: servicesError } = useServices();
   const { stylists, error: stylistsError } = useStylists();
@@ -68,6 +71,7 @@ export function BookingShell() {
           override={override}
           selectedStylistId={state.selectedStylistId}
           selectedSlot={state.selectedSlot}
+          minLeadTimeMinutes={minLeadTimeMinutesOverride}
           onSelectStylist={(stylistId) =>
             dispatch({ type: "SELECT_STYLIST", stylistId })
           }

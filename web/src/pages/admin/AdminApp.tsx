@@ -3,6 +3,7 @@ import { RequireAuth } from "../../components/RequireAuth";
 import { AdminLayout } from "./AdminLayout";
 import { AdminLogin } from "./AdminLogin";
 import { DailySchedule } from "./DailySchedule";
+import { AdminWalkIn } from "./AdminWalkIn";
 
 /**
  * Admin routing — nested under `/admin/*` from App.tsx.
@@ -42,15 +43,7 @@ export function AdminApp() {
       >
         <Route index element={<Navigate to="dashboard" replace />} />
         <Route path="dashboard" element={<DailySchedule />} />
-        <Route
-          path="walk-in"
-          element={
-            <Placeholder
-              name="Nová rezervace (walk-in)"
-              hint="Walk-in formulář je v přípravě (Phase 3.3)."
-            />
-          }
-        />
+        <Route path="walk-in" element={<AdminWalkIn />} />
         <Route
           path="stylists"
           element={

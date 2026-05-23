@@ -21,6 +21,9 @@ type Props = {
   override: BusinessHoursOverride[];
   selectedStylistId: string | null; // null = anyone-mode
   selectedSlot: SelectedSlot | null;
+  /** Admin walk-in passes 0 (immediate booking allowed); undefined falls
+   *  back to D-018 default 120 min. Mirrors CF wrapper staff-bypass. */
+  minLeadTimeMinutes?: number;
   onSelectStylist: (id: string | null) => void;
   onSelectSlot: (slot: SelectedSlot) => void;
   onPrev: () => void;
@@ -34,6 +37,7 @@ export function SlotStep({
   override,
   selectedStylistId,
   selectedSlot,
+  minLeadTimeMinutes,
   onSelectStylist,
   onSelectSlot,
   onPrev,
@@ -78,6 +82,7 @@ export function SlotStep({
           to,
           now,
           override,
+          ...(minLeadTimeMinutes !== undefined ? { minLeadTimeMinutes } : {}),
         });
         if (!cancelled) setSlots(all);
       } catch (e) {
@@ -89,7 +94,7 @@ export function SlotStep({
     return () => {
       cancelled = true;
     };
-  }, [pool, services, serviceLengths, override]);
+  }, [pool, services, serviceLengths, override, minLeadTimeMinutes]);
 
   // Group slots by wall-clock day for the picker UI.
   const byDay = useMemo(() => {

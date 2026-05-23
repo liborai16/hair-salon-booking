@@ -369,7 +369,23 @@ export const createBooking = onCall(async (request) => {
   // write below — temporal consistency per D-018 BS-2 (avoids drift between
   // the lead-time gate and bookings.createdAt).
   const now = new Date();
-  const minLeadTimeMinutes = DEFAULT_MIN_LEAD_TIME_MINUTES;
+  // Staff callers (owner / receptionist / stylist authenticated via custom
+  // claims) bypass the lead-time gate — walk-in / phone bookings need to
+  // happen immediately. Public callable is anonymous (auth=null), uses the
+  // industry-standard 120-min default per D-018 minLeadTime rationale.
+  // The same `request.auth.token.role` drives the `source` field below
+  // (booking origin tracking — public guest vs admin walk-in).
+  const callerRole = request.auth?.token.role as
+    | "owner"
+    | "receptionist"
+    | "stylist"
+    | undefined;
+  const isStaffCaller =
+    callerRole === "owner" ||
+    callerRole === "receptionist" ||
+    callerRole === "stylist";
+  const minLeadTimeMinutes = isStaffCaller ? 0 : DEFAULT_MIN_LEAD_TIME_MINUTES;
+  const bookingSource: "public" | "admin" = isStaffCaller ? "admin" : "public";
   const check = checkSlot(
     prepared.startAt,
     {
@@ -455,7 +471,7 @@ export const createBooking = onCall(async (request) => {
       endAt: prepared.endAt,
       status: "confirmed",
       totalPrice: prepared.totalPrice,
-      source: "public",
+      source: bookingSource,
       createdAt: now,
       updatedAt: now,
     };
