@@ -1,77 +1,109 @@
 rules_version = '2';
 
 // ============================================================
-// Firestore Security Rules — Day 1 skeleton.
+// Firestore Security Rules — A.2 active (post-D-018 + post-seed).
 //
-// Secure-by-default: every collection denies read/write until
-// Day 2, where the `if false` placeholders get replaced with
-// real auth/role logic. The structure here mirrors the full
-// data model so the surface is visible at a glance.
+// Helpers are CLAIMS-BASED (request.auth.token.role + .linkedStylistId)
+// rather than the Day 1 skeleton's userDoc() Firestore-lookup pattern.
+// Custom claims are server-issued (admin.auth().setCustomUserClaims() in
+// seed.mjs), JWT-cached, and incur ZERO Firestore reads per rule eval.
+// Per Firebase best practice; supersedes pre-claims skeleton design.
 //
-// Why secure-by-default for Day 1:
-//   The local emulator is permissive without rules, but the moment
-//   we touch the live Firestore (even for seed), open rules would
-//   expose customer PII. Better to fail-closed everywhere and
-//   selectively open in Day 2 than to forget a collection.
+// Permission model per D-013 PII split:
+//   - Public read:  services, stylists, salonSettings, bookings (no PII)
+//   - Staff read:   bookingCustomers, customerProfiles, absences, notifications
+//   - Owner write:  services, stylists, salonSettings, absences
+//   - Staff write:  bookings (granularity at UI/business logic, not rules)
+//   - CF-only:      bookingCustomers, customerProfiles, notifications
+//   - Owner delete: bookings (safety net — normal cancellation = status update)
+//
+// Admin SDK bypasses rules entirely — Cloud Functions (createBooking,
+// manageBookingByToken) and seed.mjs are free of the gates below.
 // ============================================================
 
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // --- Helper functions (Day 2 will activate) ---
-    // function isAuthenticated() { return request.auth != null; }
-    // function userDoc() { return get(/databases/$(database)/documents/users/$(request.auth.uid)).data; }
-    // function hasRole(r) { return isAuthenticated() && userDoc().role == r; }
-    // function isOwner() { return hasRole('owner'); }
-    // function isStaff() { return hasRole('owner') || hasRole('receptionist') || hasRole('stylist'); }
-    // function stylistOwnsBooking(stylistId) { return hasRole('stylist') && userDoc().linkedStylistId == stylistId; }
+    // --- Helper functions (claims-based) ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    function hasRole(r) {
+      return isAuthenticated() && request.auth.token.role == r;
+    }
+    function isOwner() {
+      return hasRole('owner');
+    }
+    function isStaff() {
+      return isAuthenticated()
+        && request.auth.token.role in ['owner', 'receptionist', 'stylist'];
+    }
+    function isStylistFor(stylistId) {
+      return hasRole('stylist') && request.auth.token.linkedStylistId == stylistId;
+    }
 
-    // services/{id} — Day 2 target: PUBLIC READ, OWNER WRITE
+    // services/{id} — PUBLIC READ (booking flow needs service list), OWNER WRITE
     match /services/{id} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if isOwner();
     }
 
-    // stylists/{id} — Day 2 target: PUBLIC READ, OWNER WRITE
+    // stylists/{id} — PUBLIC READ (booking flow displays team), OWNER WRITE
     match /stylists/{id} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if isOwner();
     }
 
-    // absences/{id} — Day 2 target: STAFF READ, OWNER WRITE
+    // absences/{id} — STAFF READ (recepční sees stylist schedule), OWNER WRITE
     match /absences/{id} {
-      allow read, write: if false;
+      allow read: if isStaff();
+      allow write: if isOwner();
     }
 
-    // bookings/{id} — Day 2 target: PUBLIC READ (no PII), CF-only WRITE
+    // bookings/{id} — PUBLIC READ (no PII per D-013 — slot availability is public),
+    // STAFF WRITE for create/update (admin walk-ins, status transitions),
+    // OWNER-ONLY DELETE (A1 safety net — normal cancellation is status update,
+    // not hard delete; via manageBookingByToken CF for clients).
     match /bookings/{id} {
-      allow read, write: if false;
+      allow read: if true;
+      allow create, update: if isStaff();
+      allow delete: if isOwner();
     }
 
-    // bookingCustomers/{bookingId} — Day 2 target: STAFF ONLY, CF-only WRITE (PII)
+    // bookingCustomers/{bookingId} — STAFF-ONLY READ (PII per D-013), CF-only WRITE
     match /bookingCustomers/{bookingId} {
-      allow read, write: if false;
+      allow read: if isStaff();
+      allow write: if false;
     }
 
-    // customerProfiles/{phoneHash} — Day 2 target: STAFF ONLY (PII aggregates)
+    // customerProfiles/{phoneHash} — STAFF-ONLY READ (PII aggregated), CF-only WRITE
     match /customerProfiles/{phoneHash} {
-      allow read, write: if false;
+      allow read: if isStaff();
+      allow write: if false;
     }
 
-    // users/{uid} — Day 2 target: self-read, OWNER read/write
+    // users/{uid} — SELF READ + OWNER READ, OWNER WRITE only
+    // Self-read for client app to load own profile after login; role
+    // mutation is owner privilege (no self-promotion).
     match /users/{uid} {
-      allow read, write: if false;
+      allow read: if isAuthenticated() && (request.auth.uid == uid || isOwner());
+      allow write: if isOwner();
     }
 
-    // salonSettings/{id} — Day 2 target: PUBLIC READ for /main, OWNER WRITE
+    // salonSettings/{id} — PUBLIC READ (IBAN for SPAYD QR, hours for booking
+    // display), OWNER WRITE
     match /salonSettings/{id} {
-      allow read, write: if false;
+      allow read: if true;
+      allow write: if isOwner();
     }
 
-    // notifications/{id} — Day 2 target: STAFF READ, CF-only WRITE
+    // notifications/{id} — STAFF-ONLY READ, CF-only WRITE
     match /notifications/{id} {
-      allow read, write: if false;
+      allow read: if isStaff();
+      allow write: if false;
     }
 
-    // Default deny — anything not matched above
+    // Default deny — anything not matched above (A2: AT END as fallback)
     match /{document=**} {
       allow read, write: if false;
     }

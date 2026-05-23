@@ -43,9 +43,32 @@ Předběžně:
 
 ## 5. Přihlašovací údaje (seedovaní admini)
 
-*To be filled (Day 2 po seedu).*
+Spuštění `npm run seed` (proti Firestore emulátoru) vytvoří 6 účtů + custom claims pro 3 role. **Heslo pro všechny: `Heslo123!`** (demo-only, emulator-isolated; produkční nasazení by vynutilo first-login change).
 
-Plánujeme 3 role: `owner`, `receptionist`, `stylist`. Každá s vlastním účtem + heslem.
+| E-mail | Role | Linked stylist | Note |
+|---|---|---|---|
+| `eva@salon.cz` | `owner` | `stl-eva-novakova` | Majitelka, taky stříhá (Mon-Fri 9-17) |
+| `marie@salon.cz` | `stylist` | `stl-marie-krasna` | „Mistrová" 15y praxe (Tue-Sat 9-18, omits detsky) |
+| `lenka@salon.cz` | `stylist` | `stl-lenka-svobodova` | Mid-level, ranní (Mon-Fri 8-16) |
+| `petra@salon.cz` | `stylist` | `stl-petra-dvorakova` | Mid-level, odpolední (Tue-Sat 12-20) |
+| `tereza@salon.cz` | `stylist` | `stl-tereza-mala` | Junior, odpoledne (Mon-Fri 13-19, omits complex barveni + svatebni) |
+| `hana@salon.cz` | `receptionist` | — | Recepční (žádný stylist link) |
+
+### Role matrix (Firestore rules)
+
+| Collection | Public read | Staff read | Owner write | Staff write | Note |
+|---|---|---|---|---|---|
+| `services` | ✓ | ✓ | ✓ | — | Booking flow needs service list |
+| `stylists` | ✓ | ✓ | ✓ | — | Booking flow displays team |
+| `salonSettings/main` | ✓ | ✓ | ✓ | — | IBAN for SPAYD QR; hours public |
+| `bookings` | ✓ (no PII per D-013) | ✓ | ✓ delete only | ✓ create/update | Owner-only hard-delete (safety net) |
+| `bookingCustomers` | — | ✓ | — | — | PII; CF-only write (via createBooking) |
+| `customerProfiles` | — | ✓ | — | — | Aggregated PII; CF-only write |
+| `absences` | — | ✓ | ✓ | — | Stylist schedule, owner manages |
+| `users` | — | self-read | ✓ | — | Self-read of own profile + owner CRUD |
+| `notifications` | — | ✓ | — | — | Mock log, CF-only write |
+
+Custom claims (set by `seedUsersAndAuth` in `scripts/seed.mjs` via Admin SDK): `{ role: 'owner' | 'receptionist' | 'stylist', linkedStylistId?: string }`. Rules read claims directly from JWT (`request.auth.token.role`) — zero Firestore lookups per rule eval. See `firestore.rules` for full helper definitions.
 
 ---
 

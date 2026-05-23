@@ -154,12 +154,19 @@ Developer-facing caveaty k *aktuálnímu* stavu rozpracovaného repa (ne durable
 design rozhodnutí — ta jsou v `docs/decisions.md`; ne dlouhodobé limitace MVP —
 ty půjdou do `README §6` na Day 6). Tahle sekce se mění, jak práce postupuje.
 
-### Aktuální stav (2026-05-23 EOD)
+### Aktuální stav (2026-05-23 EOD — Day 2 pending + D5 closed)
 
 - **Day 2 BLOK B = 5/5 ✅** (esbuild D-015 finalized at `a0f7745`)
 - **Day 3 = D-018 milestone complete** (7-commit chain `610ca48` → `9585409`)
-- **TODO(day-3) z BLOK B vyřízeno** — `createBooking.ts` integrated s `checkSlot` (single source of slot-validity truth v real server flow)
-- Plný snapshot v `docs/SESSION_HANDOFF_2026-05-22.md` (refreshed); decisions D-001 → D-018; lessons L-001 → L-010.
+- **Day 2 pending CLOSED** (was blocker for runtime smoke per `SESSION_HANDOFF_2026-05-22.md` §2):
+  - seed: `scripts/seed.mjs` shipped `960991b` (10 services + 5 stylists + 6 admin accounts + ~25 bookings + 6 absences + 2 customer profiles + 2 notifications, idempotent deterministic IDs)
+  - rules: claims-based role rules shipped THIS commit (replaces `if false` skeleton; permission matrix per D-013 PII split)
+  - auth: provisioned via seed (`seedUsersAndAuth` — 6 accounts + custom claims via Admin SDK)
+- **D5 (cross-module phoneHash duplication) RESOLVED** via `5418ba7` (Web Crypto API lift to `@hsb/shared/customer-hash` — D-013 SDK-agnostic stance honored; functions + seed + future UI share single source).
+- **TODO(day-3) z BLOK B vyřízeno** — `createBooking.ts` integrated s `checkSlot` (single source of slot-validity truth v real server flow).
+- Plný snapshot v `docs/SESSION_HANDOFF_2026-05-22.md` (refresh due — defer to next docs touch); decisions D-001 → D-018; lessons L-001 → L-010.
+
+**Next milestone:** UI booking flow + admin UI (web/ workspace). Backend layer complete; UI consumes via Cloud Functions + public Firestore reads.
 
 ### 🔴 Runtime smoke-test gap (BLOK B + D-018 integration)
 
@@ -228,7 +235,9 @@ checkSlot's #1/#2 optional přes flag).
 **D5 — `OCCUPYING_STATUSES` cross-module duplication.**
 Defined v `functions/createBooking.ts` ř. 49 + `packages/shared/availability.ts`
 ř. 424. Both immutable Sets, same content. Cleanup: lift to shared single
-source + functions re-import.
+source + functions re-import. **(Distinct from `phoneHash` D5-named lift —
+that was a different inline-duplication pattern, resolved via `5418ba7`.
+`OCCUPYING_STATUSES` is the remaining D5-pattern instance.)**
 
 ### 🟢 MVP-realistic notes (handover checkpoint)
 
