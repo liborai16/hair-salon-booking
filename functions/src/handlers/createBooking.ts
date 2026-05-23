@@ -15,7 +15,7 @@
  */
 
 import { HttpsError, onCall } from "firebase-functions/v2/https";
-import { createHash, randomBytes } from "node:crypto";
+import { randomBytes } from "node:crypto";
 import {
   checkSlot,
   computeTotalDuration,
@@ -23,6 +23,7 @@ import {
   convertTimestampsToDate,
   DEFAULT_MIN_LEAD_TIME_MINUTES,
   fromFirestore,
+  hashCustomerPhone,
   overlaps,
   toFirestore,
   type Absence,
@@ -397,11 +398,9 @@ export const createBooking = onCall(async (request) => {
   const bookingId = bookingRef.id;
   // 256-bit, URL-safe (~43 chars) — exceeds the 192-bit floor in types.ts.
   const cancelToken = randomBytes(32).toString("base64url");
-  // SHA-256 of the E.164 phone, truncated to 32 hex chars (CustomerProfile key).
-  const phoneHash = createHash("sha256")
-    .update(input.customer.phone)
-    .digest("hex")
-    .slice(0, 32);
+  // CustomerProfile doc key (D5 lift: shared helper, mirrors seed + future UI).
+  // Async per Web Crypto API — handler is already async (onCall), trivial await.
+  const phoneHash = await hashCustomerPhone(input.customer.phone);
   const profileRef = db.collection("customerProfiles").doc(phoneHash);
 
   // --- 3. Transaction: slot re-check + atomic writes ---
