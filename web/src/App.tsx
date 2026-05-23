@@ -4,29 +4,33 @@ import { Landing } from "./pages/Landing";
 import { BookingFlow } from "./pages/BookingFlow";
 import { CancelPage } from "./pages/CancelPage";
 import { AdminApp } from "./pages/admin/AdminApp";
+import { AuthProvider } from "./lib/auth";
 // Side-effect import — initializes Firebase + connects emulators in dev mode.
 import "./lib/firebase";
 
 /**
  * Top-level router. Routes:
- *   /            → Landing (public marketing)
- *   /book        → BookingFlow (public 4-step booking)
+ *   /            → Landing (public)
+ *   /book        → BookingFlow (public 4-step)
  *   /r/:token    → CancelPage (magic-link self-cancel)
- *   /admin/*     → Admin (login + dashboard + management)
+ *   /admin/*     → AdminApp (own AdminLayout — separate from public Layout)
  *
- * All routes wrapped in shared Layout via Outlet pattern.
+ * AuthProvider wraps the whole tree so both public and admin routes can
+ * read auth state if needed (public flow doesn't, but keeps shape simple).
  */
 export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route element={<Layout />}>
-          <Route path="/" element={<Landing />} />
-          <Route path="/book" element={<BookingFlow />} />
-          <Route path="/r/:token" element={<CancelPage />} />
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route element={<Layout />}>
+            <Route path="/" element={<Landing />} />
+            <Route path="/book" element={<BookingFlow />} />
+            <Route path="/r/:token" element={<CancelPage />} />
+          </Route>
           <Route path="/admin/*" element={<AdminApp />} />
-        </Route>
-      </Routes>
-    </BrowserRouter>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
   );
 }
