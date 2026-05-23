@@ -13,7 +13,7 @@
     "build": "npm run build --workspace=web",
     "test": "npm run test --workspaces --if-present",
     "emulators": "firebase emulators:start",
-    "seed": "node scripts/seed.mjs"
+    "seed": "npm run build --workspace=@hsb/shared && node scripts/seed.mjs"
   },
   "engines": {
     "node": ">=22"
