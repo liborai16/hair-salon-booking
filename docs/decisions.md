@@ -636,8 +636,15 @@ v pre-readu — repo je autorita, paměť ne):**
    BEFORE per-stylist weeklyHours" → definuje precedenci (řeší D2).
 4. `pricing.ts` už exportuje `SLOT_GRANULARITY_MIN = 15` a
    `computeTotalDuration(services, lengths)` → reuse, ne redefinice.
-5. `Stylist.serviceIds: string[]` = per-service-ID capability, který
-   `createBooking` už používá → reuse (řeší D4 by empirie).
+5. **Capability storage** — viz D4 (per-service-ID, reuse, žádná nová struktura).
+6. **Status filtering pattern už existuje server-side** — `createBooking.ts`
+   ř. 49 definuje `OCCUPYING_STATUSES = ["pending","confirmed"]` a in-memory
+   filtr v transakci (ř. 276). Caller (UI i server) tedy filtruje cancelled/
+   completed/no_show bookings PŘED passing do generátoru. Stejně `absences`
+   — caller dodá jen ty pro daného stylistu, protínající okno. Generator
+   zůstává **defensivně robustní** (kdyby caller selhal, non-occupying se
+   interně ignorují), ale kontrakt = caller filtruje. Viz „Caller contract"
+   v Architektuře.
 
 ---
 
@@ -648,7 +655,9 @@ checkSlot(start, StylistAvailabilityInput, SlotQuery): SlotCheck
   ── JÁDRO. Validuje JEDEN (start, duration) v pořadí:
      qualification → in_past → too_soon → salon_closed →
      outside_working_hours → absence → booking_conflict.
-     Vrací typovaný SlotRejectionReason.
+     Vrací typovaný SlotRejectionReason. **First-fail single-reason**
+     sémantika (cheap-first short-circuit; alternativa array-reasons
+     zamítnuta YAGNI — server hlásí klientovi jeden důvod, ne exhaustive list).
   ── Volá createBooking server-side (nahrazuje TODO(day-3)).
 
 generateSlotsForStylist(input, query): Slot[]
@@ -674,6 +683,48 @@ vrstvy).
   „mimo pracovní dobu / absence / zavřený den" levně; transakce chytne „právě
   obsazeno". **Jeden zdroj sémantiky (`overlaps()`), dvě místa volání** podle
   race-citlivosti dat.
+
+**Caller contract — co generátor předpokládá na vstupu:**
+Caller (UI i server) je odpovědný za:
+- **Deserializaci** Firestore Timestamp → `Date` přes `fromFirestore` (D-013).
+- **Status filter `bookings`** na occupying jen (`pending` / `confirmed`); cancelled
+  / completed / no_show se pre-filtrují. `createBooking.ts` ř. 49 už definuje
+  `OCCUPYING_STATUSES` — caller-side filtering je zavedený pattern.
+- **Scope filter `absences`** na konkrétního stylistu × protínající `[from, to)`.
+
+Generátor zůstává **defensivně robustní** (interně ignoruje non-occupying status,
+kdyby caller selhal — belt-and-suspenders za triviální cenu), ale kontrakt =
+caller filtruje. Toto rozdělení drží jádro tenké a respektuje, že caller už
+zná správný subset (UI tahá per-stylist okna; server tahá txn-read subset).
+
+**`now: Date` injected jako parametr — čtyři důvody:**
+1. **Testability** — testy passují fixed `now`, žádný `vi.useFakeTimers()` overhead.
+2. **Determinism** — pure: žádný `Date.now()` uvnitř, žádné side-effecty na
+   clock source (D-013 SDK-agnostic přesah).
+3. **Caller-controlled** — UI může passovat „virtual now" pro preview budoucího
+   horizontu; server passuje skutečný `now`.
+4. **Server temporal consistency** — `createBooking` passuje **stejný `now`** do
+   `checkSlot` (lead-time check) i do `bookings.createdAt` zápisu (transakce).
+   Eliminuje drobný race: kdyby si každá vrstva vzala `Date.now()` zvlášť,
+   lead-time check by mohl povolit slot, který by se za pár ms zapsal s
+   `createdAt`, kdy už by lead-time neplatil. Triviální v praxi, ale upřímnější
+   kontrakt.
+
+**Zvažovaná alternativa: server-side `listAvailableSlots` Cloud Function (zamítnuto):**
+Místo shared pure funkce zavolané v UI bychom mohli mít CF endpoint
+`listAvailableSlots(query) → Slot[]`, který by UI volala při každém tweaku
+výběru. Čtyři důvody zamítnutí:
+1. **Latency** — každý UI interaction = network round-trip + Gen2 cold-start
+   riziko (region `europe-west3`, ale stále desítky až stovky ms vs. <10 ms
+   in-browser compute).
+2. **Cost** — 1000 návštěvníků × 5 tweaků = 5000 function invokací; klient-side
+   compute = 0 Cloud Functions billing.
+3. **Testability** — shared pure se unit-testuje bez emulátoru (Day 5 anchor);
+   Cloud Function vyžaduje integration test s Firestore + functions emulator.
+4. **Bez čistého přínosu** — shared pure už dává server (`checkSlot` v
+   `createBooking`) i klient (UI bulk gen) v jednom kódu. CF vrstva by jen
+   přidala latency/cost bez ekvivalentního benefitu. Není to ani „duplikace
+   logiky" (CF by byla thin wrapper) — je to **vrstva navíc bez důvodu**.
 
 ---
 
@@ -768,6 +819,11 @@ PDF kontext: vytížený salon, mistrová má frontu — „za 5 minut volno" je
 nereálné. Tunable: UI/seed/demo může passovat nižší hodnotu. **Dokumentováno
 jako README §6 assumption.**
 
+**Per-stylist / per-service variant zamítnut YAGNI;** budoucí pattern by byl
+`max(global, stylist.minLeadTime?, service.minLeadTime?)` — reálný salon
+může chtít barvení 4h lead (komplexní), mistrová 24h lead (full booking).
+Pro MVP globální param stačí.
+
 ---
 
 **Trade-offs:**
@@ -793,7 +849,13 @@ jako README §6 assumption.**
 - **D-016** — `overlaps()` je jádro absence/booking konfliktu; D-018 ho reuse
   bez změny (Absence i Booking jsou half-open už dnes).
 - `createBooking.ts` ř. 199-206 (`TODO(day-3)`) — server consumer, který se
-  přepojí na `checkSlot`.
+  přepojí na `checkSlot`. **Integration footprint:** dnes handler nenačítá
+  `absences` ani `salonSettings.businessHoursOverride`; přidají se jako
+  **dva nové Firestore reads** v `prepareBooking` před transakcí (statická
+  data, nepatří do txn). `prepareBooking` pak passuje `{ stylist, absences,
+  bookings: [] }` + `override` do `checkSlot` (`bookings` schválně prázdné —
+  race-check zůstává v transakci s `overlaps()` proti txn-read bookings,
+  per dělba odpovědnosti výše).
 
 **Known limitations / Future work** (→ README §6 / §8):
 
@@ -809,6 +871,11 @@ jako README §6 assumption.**
   Souběžná práce dvou stylistů na jednom klientovi je out-of-scope.
 - **Per-service medium/long délky** (D-014 future work).
 - **Configurable granularita per salon** (D1) — konstanta zatím stačí.
+- **Pre-computed daily availability cache** — pro MVP scale (5 stylistů × 4
+  týdny, výpočet sub-10 ms) bez přínosu. **Scale-driven refactor pro 100+
+  stylistů:** cache invalidovaná na new booking / new absence / override change
+  / weeklyHours change by snížila per-request CPU. Pro MVP neimplementováno;
+  pattern dokumentován pro budoucí scale.
 
 ---
 
