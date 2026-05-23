@@ -159,7 +159,7 @@ ty půjdou do `README §6` na Day 6). Tahle sekce se mění, jak práce postupuj
 - **Day 2 BLOK B = 5/5 ✅** (esbuild D-015 finalized at `a0f7745`)
 - **Day 3 = D-018 milestone complete** (7-commit chain `610ca48` → `9585409`)
 - **Day 2 pending CLOSED** (was blocker for runtime smoke per `SESSION_HANDOFF_2026-05-22.md` §2):
-  - seed: `scripts/seed.mjs` shipped `960991b` (10 services + 5 stylists + 6 admin accounts + ~25 bookings + 6 absences + 2 customer profiles + 2 notifications, idempotent deterministic IDs)
+  - seed: `scripts/seed.mjs` shipped `960991b` (9 services + 5 stylists + 6 admin accounts + ~25 bookings + 6 absences + 2 customer profiles + 2 notifications, idempotent deterministic IDs)
   - rules: claims-based role rules shipped THIS commit (replaces `if false` skeleton; permission matrix per D-013 PII split)
   - auth: provisioned via seed (`seedUsersAndAuth` — 6 accounts + custom claims via Admin SDK)
 - **D5 (cross-module phoneHash duplication) RESOLVED** via `5418ba7` (Web Crypto API lift to `@hsb/shared/customer-hash` — D-013 SDK-agnostic stance honored; functions + seed + future UI share single source).

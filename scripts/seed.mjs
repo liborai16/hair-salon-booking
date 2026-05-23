@@ -3,7 +3,7 @@
  * scripts/seed.mjs — emulator-only seed for realistic salon data.
  *
  * Populates Firestore + Firebase Auth emulators per A.1 proposal:
- *   - 10 services (varied categories + length variants + off-grid duration)
+ *   - 9 services (varied categories + length variants + off-grid duration)
  *   - 5 stylists (capability + schedule diversity per PDF zadání)
  *   - 6 admin accounts (3 roles + custom claims; uid = User.id, B2)
  *   - 1 salonSettings doc with 2 business-hours overrides

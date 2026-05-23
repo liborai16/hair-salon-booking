@@ -35,7 +35,7 @@ commit per finding → re-run scénář(e) postižené změnou.
   `npx firebase`).
 - **Node 22+** (lokálně, EBADENGINE warning na Node 24 je očekávaný —
   viz L-004).
-- **Java 17+** — Firestore + Pub/Sub emulátory mají JRE dependency.
+- **Java JDK 21+** — firebase-tools 15.18 hard requirement (emulator rejects Java <21 with explicit error). Testováno na Temurin 21.0.11.
 - **`npm install`** spuštěné v repo root (hoistne `firebase-admin` +
   `vitest` + ostatní).
 - **`packages/shared/dist/` postavené** — `npm run build --workspace=@hsb/shared`
@@ -45,10 +45,12 @@ commit per finding → re-run scénář(e) postižené změnou.
 
 ## 3. Setup — 3 terminály paralelně
 
+**Cesta B (native, doporučeno):** `firebase emulators:start` přímo na hostu (Java JDK 21+). Alternativa Cesta A = `docker compose up` (zabaluje Javu, ale větší install). Smoke testováno na Cestě B.
+
 | # | Terminal | Command | Wait for |
 |---|---|---|---|
 | T1 | Emulators | `firebase emulators:start` (nebo `npm run emulators` v root) | `All emulators ready! It is now safe to connect.` |
-| T2 | Seed | `npm run seed` (po T1 ready) | `✅ Seed complete.` + per-collection counts (10 services, 5 stylists, 6 users + auth, 25 bookings, atd.) |
+| T2 | Seed | `npm run seed` (po T1 ready) | `✅ Seed complete.` + per-collection counts (9 services, 5 stylists, 6 users + auth, 25 bookings, atd.) |
 | T3 | Web dev | `cd web && npm run dev` | `Local: http://localhost:5173/` |
 
 **Plus otevřít:**
@@ -224,7 +226,7 @@ Functions 5001, Hosting 5000, UI 4000.
 ### G. Services CRUD (owner-only)
 
 **Steps:**
-1. Sidebar → **Služby**. Tabulka 10 services + kategorie + délka + cena
+1. Sidebar → **Služby**. Tabulka 9 services + kategorie + délka + cena
    + active.
 2. **Create barveni service s length variants:**
    - Klik "+ Přidat službu" → modal

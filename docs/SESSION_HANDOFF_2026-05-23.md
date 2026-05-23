@@ -16,7 +16,7 @@ Rescue snapshot (context window 97 %). Plný kontext: [`CLAUDE.md`](../CLAUDE.md
 
 - **D-018 milestone** — slot-validity single source of truth (`checkSlot` v `@hsb/shared` consumed by UI + functions pre-txn).
 - **D5 phoneHash lift** — Web Crypto API async, D-013 SDK-agnostic stance honored (commit `5418ba7`).
-- **Day 2 pending CLOSED** — `scripts/seed.mjs` (10 services + 5 stylists + 6 admin accounts + ~25 bookings + 6 absences + 2 customer profiles + 2 notifications) + claims-based `firestore.rules` + Firebase Auth via seed.
+- **Day 2 pending CLOSED** — `scripts/seed.mjs` (9 services + 5 stylists + 6 admin accounts + ~25 bookings + 6 absences + 2 customer profiles + 2 notifications) + claims-based `firestore.rules` + Firebase Auth via seed.
 - **UI Phase 1+2 public** — Vite skeleton → service select → slot picker → customer form → submit → success → magic-link cancel.
 - **UI Phase 3.1–3.4 admin** — Firebase Auth + role-aware sidebar → denní rozvrh + booking drawer s status transitions → walk-in (CF staff-bypass lead-time + source) → stylists + services CRUD (owner-only, soft-delete via active toggle).
 - **`docs/SMOKE_TEST.md`** — 8-scénářový manual playbook (375 lines).

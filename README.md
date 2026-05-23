@@ -49,13 +49,13 @@ hair-salon-booking/
 
 | Collection | PII | Reader | Writer | Note |
 |---|---|---|---|---|
-| `services/{id}` | — | public | owner | 10 služeb v seedu |
+| `services/{id}` | — | public | owner | 9 služeb v seedu |
 | `stylists/{id}` | — | public | owner | 5 stylistů + capability + weeklyHours |
 | `salonSettings/main` | — | public | owner | singleton; IBAN pro SPAYD QR + business-hours overrides |
 | `bookings/{id}` | — | public | staff (delete: owner) | Anonymní (D-013 PII split); index `(stylistId, startAt)` pro slot query |
 | `bookingCustomers/{bookingId}` | ✓ PII | staff | CF only | Jméno, phone, email, cancelToken |
 | `customerProfiles/{phoneHash}` | ✓ PII | staff | CF only | Denormalizovaná historie + no-show counter (decay) |
-| `absences/{id}` | — | staff | owner | Stylist dovolená/nemoc/školení; index `(stylistId, endAt)` |
+| `absences/{id}` | — | public | owner | Stylist dovolená/nemoc/školení; index `(stylistId, endAt)`. MVP tradeoff — `reason` field je interní note, ne customer PII; produkčně by se použil CF aggregation endpoint (viz §8) |
 | `users/{uid}` | — | self + owner | owner | uid = Firebase Auth UID (1:1) |
 | `notifications/{id}` | (payload) | staff | CF only | Mock log e-mail/SMS dispatchu (`console_log` channel v MVP) |
 
@@ -92,11 +92,14 @@ web/src/
 
 ## 3. Jak spustit lokálně
 
-**Prerequisites:**
-- Docker Desktop running
-- Firebase CLI 15+ (`npm install -g firebase-tools` nebo `npx firebase`)
+**Prerequisites — Cesta B (native, doporučeno):**
 - Node 22+ (lokálně volitelné na Node 24; `EBADENGINE` warning je očekávaný — viz §9.2)
-- Java 17+ (Firestore + Pub/Sub emulátory mají JRE dep)
+- Firebase CLI 15+ (`npm install -g firebase-tools` nebo `npx firebase`)
+- Java JDK 21+ (firebase-tools 15.18 hard requirement; emulator rejecting Java <21 with explicit error. Testováno na Temurin 21.0.11)
+
+**Prerequisites — Cesta A (Docker, alternative):**
+- Docker Desktop running (zabaluje Javu do image — větší install footprint)
+- Firebase CLI 15+ (jen pro deploy + `firebase use --add`)
 
 **Setup sequence (3 paralelní terminály):**
 
@@ -179,7 +182,7 @@ Spuštění `npm run seed` (proti Firestore emulátoru) vytvoří 6 účtů + cu
 | `bookings` | ✓ (no PII per D-013) | ✓ | ✓ delete only | ✓ create/update | Owner-only hard-delete (safety net) |
 | `bookingCustomers` | — | ✓ | — | — | PII; CF-only write (via createBooking) |
 | `customerProfiles` | — | ✓ | — | — | Aggregated PII; CF-only write |
-| `absences` | — | ✓ | ✓ | — | Stylist schedule, owner manages |
+| `absences` | ✓ | ✓ | ✓ | — | Public (slot picker); `reason` field MVP tradeoff (viz §8) |
 | `users` | — | self-read | ✓ | — | Self-read of own profile + owner CRUD |
 | `notifications` | — | ✓ | — | — | Mock log, CF-only write |
 
@@ -228,6 +231,8 @@ Zadání bylo úmyslně neúplné. Tady je každý předpoklad, který jsem si m
 18. **Admin walk-in přeskakuje lead-time gate.** Recepční potřebuje rezervovat „za 5 minut" pro klienta, který právě dorazil. CF `createBooking` detekuje staff caller přes `request.auth.token.role` a nastaví `minLeadTimeMinutes = 0` (autoritativně server-side, klient hodnotu nediktuje). Plus stejné staff-bypass nastaví `Booking.source = 'admin'` pro audit původu.
 
 19. **Time-of-day v slot algoritmu počítaná přes `Intl.DateTimeFormat.formatToParts`** (zero-dep), ne přes `toLocaleString` round-trip ani `luxon`. Důvod (D-018 D6): host-spec parsing risk + GDPR-friendly zero-deps + future browser/UI consumer (D-013 SDK-agnostic stance). Empiricky ověřeno přes obě DST hrany 2026.
+
+20. **Lokální development = Cesta B (native `firebase emulators:start` + Java JDK 21+).** `docker-compose.yml` zachován jako alternativa (Cesta A). Důvod: menší install footprint (Java ~180 MB vs Docker Desktop ~3 GB), žádný WSL2 friction na Windows, rychlejší startup. Java 21+ je hard requirement firebase-tools 15.18 (Java <21 odmítnuto explicit emulator error); empiricky validováno tuto session — install 17.0.19 selhal, Temurin 21.0.11 prošel smoke testem 8/8.
 
 ---
 
