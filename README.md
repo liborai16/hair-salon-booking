@@ -165,6 +165,16 @@ Po `firebase deploy --only hosting` (viz §4) je live Firestore + Auth prázdný
 
 **Status:** *Production deploy plánován Day 5+. URL doplněno po deploy.*
 
+**Před prvním deployem do vlastního Firebase projektu:**
+
+1. **Registruj Web App** v Firebase Console (Project settings → Your apps → ➕ Add app → Web). Pojmenuj (např. „Hair Salon Web").
+2. **Zkopíruj vygenerované `firebaseConfig`** hodnoty (apiKey + authDomain + projectId + storageBucket + messagingSenderId + appId).
+3. **Nahraď je v** [`web/src/lib/firebase.ts`](web/src/lib/firebase.ts) v `initializeApp({...})`. Firebase Web apiKey je **PUBLIC** per Firebase docs (security se enforcuje přes Firestore Rules + Auth, ne přes secrecy apiKey; bundled JS ho exposuje tak jako tak).
+4. **Update** `.firebaserc` na tvoje `project_id`.
+5. **Login** přes `npx firebase login` + `npx firebase use --add`.
+
+Web App registrace je per-project (každý Firebase projekt má vlastní apiKey + appId); pre-deploy step se dělá jednou.
+
 **Deploy sequence (dokumentován pro budoucí execution):**
 
 ```bash

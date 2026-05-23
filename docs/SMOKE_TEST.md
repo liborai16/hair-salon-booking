@@ -383,7 +383,8 @@ Po `firebase deploy --only hosting` + `npm run seed:prod` (viz [`README §3 "Pro
 
 **Pokud něco selže:**
 - Empty service picker → seed neproběhl. Check `npm run seed:prod` output + Firebase Console Firestore.
-- Login fail → custom claims neprošly. Re-run `seed:prod`; check Auth tab v Console na 6 účtů.
+- Login fail s `auth/api-key-not-valid` → Web App není registrovaný v Firebase Console; viz [`README §4`](../README.md#4-nasazení) „Před prvním deployem". Lesson learned z initial Day 5 deploy: build prošel s placeholder apiKey (public Firestore reads fungovaly přes rules), ale Auth strict apiKey-vs-project check fail-nul až runtime.
+- Login fail s validem apiKey ale účet nepřihlásí → custom claims neprošly. Re-run `seed:prod`; check Auth tab v Console na 6 účtů.
 - `createBooking` callable error → check Cloud Functions Logs v Firebase Console (region `europe-west3`); pravděpodobně chybí composite index (viz [`README §4`](../README.md#4-nasazení) deploy sekvence).
 
 ---
