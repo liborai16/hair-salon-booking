@@ -435,6 +435,83 @@ function maxHHMM(a: string, b: string): string { return a > b ? a : b; }
 function minHHMM(a: string, b: string): string { return a < b ? a : b; }
 
 // ============================================================
+// Day-window computation (internal) — D-018 D2 intersection
+// ============================================================
+
+/**
+ * Result of `computeStylistDayWindow` — discriminated union on `kind`:
+ *
+ * - `salon_closed`        — `override.open === false` for the date (salon-wide).
+ * - `closed_for_stylist`  — stylist doesn't work this weekday OR the override
+ *                           `hours` don't intersect `stylist.weeklyHours`.
+ * - `open`                — stylist's effective window in UTC instants; slot
+ *                           must fit `[start, end)` (half-open: last valid
+ *                           slot ends EXACTLY at `end`).
+ *
+ * Caller maps `salon_closed` and `closed_for_stylist` to different
+ * `SlotRejectionReason`s (`checkSlot`) or both to "skip day"
+ * (`generateSlotsForStylist`). Internal — not exported; tests verify
+ * behavior through `checkSlot` / generator outcomes.
+ */
+type DayWindow =
+  | { kind: "open"; start: Date; end: Date }
+  | { kind: "salon_closed" }
+  | { kind: "closed_for_stylist" };
+
+/**
+ * Compute the effective working window of a stylist on a given calendar
+ * day, factoring in salon-level business-hours overrides
+ * (D-018 D2 intersection).
+ *
+ * **Single source of truth** for "is this stylist working on this day,
+ * and within what wall-clock window?" — called by both `checkSlot`
+ * (checks #4 + #5) and `generateSlotsForStylist` (day-level skip + grid
+ * window). Extracts the intersection logic that was previously duplicated
+ * across both call sites.
+ *
+ * **`override.open=true` WITHOUT `hours` = "no narrowing"** (D-018 D2
+ * sub-case): the open flag alone never expands the stylist's day, but
+ * absence of `hours` doesn't shrink it either — falls back to pure
+ * `weeklyHours[weekday]`.
+ *
+ * @param stylist  Stylist with `weeklyHours` per weekday.
+ * @param ymd      Calendar date in `"YYYY-MM-DD"` (caller derives from
+ *                 slot start or day iterator).
+ * @param override Salon-level overrides; sparse, looked up by exact date.
+ */
+function computeStylistDayWindow(
+  stylist: Stylist,
+  ymd: string,
+  override?: BusinessHoursOverride[],
+): DayWindow {
+  const dayOverride = override?.find((o) => o.date === ymd);
+  if (dayOverride?.open === false) return { kind: "salon_closed" };
+
+  // Weekday from the date itself (TZ-independent calendar property).
+  const [Y, M, D] = ymd.split("-").map(Number) as [number, number, number];
+  const weekday = UTC_DAY_TO_WEEKDAY[
+    new Date(Date.UTC(Y, M - 1, D)).getUTCDay()
+  ] as keyof WeeklyHours;
+
+  const stylistHours = stylist.weeklyHours[weekday];
+  if (stylistHours === null) return { kind: "closed_for_stylist" };
+
+  const effectiveStart = dayOverride?.hours
+    ? maxHHMM(stylistHours.start, dayOverride.hours.start)
+    : stylistHours.start;
+  const effectiveEnd = dayOverride?.hours
+    ? minHHMM(stylistHours.end, dayOverride.hours.end)
+    : stylistHours.end;
+  if (effectiveStart >= effectiveEnd) return { kind: "closed_for_stylist" };
+
+  return {
+    kind: "open",
+    start: wallToInstant(ymd, effectiveStart, SALON_TZ),
+    end: wallToInstant(ymd, effectiveEnd, SALON_TZ),
+  };
+}
+
+// ============================================================
 // Availability API (D-018)
 // ============================================================
 
@@ -517,44 +594,26 @@ export function checkSlot(
   const duration = computeTotalDuration(services, serviceLengths);
   const end = new Date(start.getTime() + duration * 60_000);
 
-  // Wall-clock parts of the slot's day for override + weeklyHours lookup.
-  const { ymd, weekday } = instantToWallParts(start, SALON_TZ);
+  // Wall-clock date of the slot for override + weeklyHours lookup
+  // (weekday is derived inside the helper from ymd).
+  const { ymd } = instantToWallParts(start, SALON_TZ);
 
-  // 4. salon_closed — explicit override.open === false for this date.
-  const dayOverride = override?.find((o) => o.date === ymd);
-  if (dayOverride?.open === false) {
+  // 4 + 5: salon_closed + outside_working_hours via shared day-window helper.
+  // The helper is the single source of intersection truth (D-018 D2 + sub-case
+  // "open without hours = no narrowing"). Closure rejects map to two
+  // different SlotRejectionReasons; bounds rejection is the slot fit check.
+  const dayWindow = computeStylistDayWindow(stylist, ymd, override);
+  if (dayWindow.kind === "salon_closed") {
     return { valid: false, reason: "salon_closed" };
   }
-
-  // 5. outside_working_hours — intersection(weeklyHours[weekday], override.hours?).
-  // `override.open=true` WITHOUT `hours` means "open with the stylist's
-  // normal hours" — no special outer bracket — so we treat it as
-  // unconstrained. D-018 D2 documents the intersection but leaves this
-  // sub-case implicit; resolved here as "no narrowing" (the open-flag alone
-  // never EXPANDS the stylist's day, but absence of `hours` doesn't shrink
-  // it either).
-  const stylistHours = stylist.weeklyHours[weekday];
-  if (stylistHours === null) {
+  if (dayWindow.kind === "closed_for_stylist") {
     return { valid: false, reason: "outside_working_hours" };
   }
-  const effectiveStart = dayOverride?.hours
-    ? maxHHMM(stylistHours.start, dayOverride.hours.start)
-    : stylistHours.start;
-  const effectiveEnd = dayOverride?.hours
-    ? minHHMM(stylistHours.end, dayOverride.hours.end)
-    : stylistHours.end;
-  if (effectiveStart >= effectiveEnd) {
-    // Degenerate intersection (e.g. stylist 8-12, override 14-18) → closed.
-    return { valid: false, reason: "outside_working_hours" };
-  }
-  const windowStart = wallToInstant(ymd, effectiveStart, SALON_TZ);
-  const windowEnd = wallToInstant(ymd, effectiveEnd, SALON_TZ);
-  // Slot must fit entirely in [windowStart, windowEnd]: start inside, end
-  // no later than the closing instant (half-open behavior consistent with
-  // overlaps() — a slot ending exactly at closing is the last valid slot).
+  // dayWindow.kind === "open"; TS narrows to that branch.
+  // Half-open: slot ending EXACTLY at dayWindow.end is the last valid slot.
   if (
-    start.getTime() < windowStart.getTime() ||
-    end.getTime() > windowEnd.getTime()
+    start.getTime() < dayWindow.start.getTime() ||
+    end.getTime() > dayWindow.end.getTime()
   ) {
     return { valid: false, reason: "outside_working_hours" };
   }
@@ -641,36 +700,14 @@ export function generateSlotsForStylist(
   const result: Slot[] = [];
 
   for (const ymd of iterateDays(from, to, SALON_TZ)) {
-    // --- Day-level pre-compute (cheap reject before iterating grid) ---
-    // Same intersection logic as checkSlot's check #5; here as a day-wide
-    // shortcut so we skip the grid entirely when the day is closed / stylist
-    // off / windows don't intersect. Per-slot validation still runs through
-    // checkSlot below (single source of slot-validity truth, D-018
-    // architektura — pragmatic hybrid).
-
-    const dayOverride = query.override?.find((o) => o.date === ymd);
-    if (dayOverride?.open === false) continue; // salon_closed whole day
-
-    // Weekday from the date itself (TZ-independent calendar property; same
-    // technique as `instantToWallParts`).
-    const [Y, M, D] = ymd.split("-").map(Number) as [number, number, number];
-    const weekday = UTC_DAY_TO_WEEKDAY[
-      new Date(Date.UTC(Y, M - 1, D)).getUTCDay()
-    ] as keyof WeeklyHours;
-
-    const stylistHours = stylist.weeklyHours[weekday];
-    if (stylistHours === null) continue; // stylist off this weekday
-
-    const effectiveStart = dayOverride?.hours
-      ? maxHHMM(stylistHours.start, dayOverride.hours.start)
-      : stylistHours.start;
-    const effectiveEnd = dayOverride?.hours
-      ? minHHMM(stylistHours.end, dayOverride.hours.end)
-      : stylistHours.end;
-    if (effectiveStart >= effectiveEnd) continue; // degenerate intersection
-
-    const windowStartMs = wallToInstant(ymd, effectiveStart, SALON_TZ).getTime();
-    const windowEndMs = wallToInstant(ymd, effectiveEnd, SALON_TZ).getTime();
+    // --- Day-level pre-compute via shared helper (DRY with checkSlot) ---
+    // Generator skips the day entirely on ANY closure (salon or stylist);
+    // per-slot validation still runs through checkSlot below (single source
+    // of slot-validity truth, D-018 architektura — pragmatic hybrid).
+    const dayWindow = computeStylistDayWindow(stylist, ymd, query.override);
+    if (dayWindow.kind !== "open") continue;
+    const windowStartMs = dayWindow.start.getTime();
+    const windowEndMs = dayWindow.end.getTime();
 
     // --- Grid iteration: start at window opening, step by granularity ---
     // Loop condition: candidate slot must fit in the working window
