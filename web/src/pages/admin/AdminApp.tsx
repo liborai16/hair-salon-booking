@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { RequireAuth } from "../../components/RequireAuth";
 import { AdminLayout } from "./AdminLayout";
 import { AdminLogin } from "./AdminLogin";
+import { DailySchedule } from "./DailySchedule";
 
 /**
  * Admin routing — nested under `/admin/*` from App.tsx.
@@ -40,15 +41,7 @@ export function AdminApp() {
         }
       >
         <Route index element={<Navigate to="dashboard" replace />} />
-        <Route
-          path="dashboard"
-          element={
-            <Placeholder
-              name="Rozvrh"
-              hint="Denní rozvrh je v přípravě (Phase 3.2)."
-            />
-          }
-        />
+        <Route path="dashboard" element={<DailySchedule />} />
         <Route
           path="walk-in"
           element={
