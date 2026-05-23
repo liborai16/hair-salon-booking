@@ -17,20 +17,26 @@
 import { HttpsError, onCall } from "firebase-functions/v2/https";
 import { createHash, randomBytes } from "node:crypto";
 import {
+  checkSlot,
   computeTotalDuration,
   computeTotalPrice,
   convertTimestampsToDate,
+  DEFAULT_MIN_LEAD_TIME_MINUTES,
   fromFirestore,
   overlaps,
   toFirestore,
+  type Absence,
   type Booking,
   type BookingCustomer,
   type BookingHistoryEntry,
   type BookingStatus,
+  type BusinessHoursOverride,
   type CustomerProfile,
   type Notification,
+  type SalonSettings,
   type Service,
   type ServiceLengthMap,
+  type SlotRejectionReason,
   type Stylist,
 } from "@hsb/shared";
 import { db } from "../lib/firebase.js";
@@ -73,6 +79,19 @@ export interface PreparedBooking {
   endAt: Date;
   /** Server-computed total price in CZK (D-014). */
   totalPrice: number;
+  /**
+   * Stylist's absences that may overlap `[startAt, endAt)`. Bounded by a
+   * Firestore query (`stylistId == X AND endAt >= startAt`) plus an in-memory
+   * filter (`startAt < endAt`). Passed to `checkSlot` in the wrapper for the
+   * absence conflict check. D-018 integration footprint.
+   */
+  absences: Absence[];
+  /**
+   * Salon-level business-hours overrides from `salonSettings/main`, or `[]`
+   * if the doc is missing (early salon setup). Passed to `checkSlot` for the
+   * `salon_closed` + `outside_working_hours` (intersection) checks. D-018 D2.
+   */
+  override: BusinessHoursOverride[];
 }
 
 /**
@@ -196,14 +215,39 @@ export async function prepareBooking(
   const totalPrice = computeTotalPrice(services, stylist, serviceLengths);
   const endAt = new Date(startAt.getTime() + durationMinutes * MS_PER_MINUTE);
 
-  // TODO(day-3): validate the slot against the stylist's WORKING HOURS,
-  // ABSENCES and salon BUSINESS-HOURS OVERRIDES. CP3 only re-checks overlap
-  // with existing bookings (no double-booking), which does NOT prevent a
-  // booking placed outside working hours or during an absence. The full
-  // availability check belongs in the slot generator that Day 3 grows in
-  // packages/shared/src/availability.ts (alongside overlaps(), D-016); that
-  // same shared function will then be called here server-side. This gap is
-  // deliberate and scoped to Day 3 — see FLAG 1 in the Day 2 BLOK B handoff.
+  // --- Static availability inputs (D-018 integration): absences for this
+  // stylist + salon-level overrides. Time-sensitive validation (checkSlot)
+  // runs in the wrapper, not here — prepareBooking stays deterministic.
+  // Both reads in parallel; both tolerate "no matches": empty absences =
+  // stylist has no absences in window, missing salonSettings/main = no
+  // overrides configured (slot uses pure weeklyHours). Composite index
+  // `(absences: stylistId, endAt)` declared in firestore.indexes.json. ---
+  const [absencesSnap, settingsSnap] = await Promise.all([
+    db
+      .collection("absences")
+      .where("stylistId", "==", stylist.id)
+      .where("endAt", ">=", startAt)
+      .get(),
+    db.collection("salonSettings").doc("main").get(),
+  ]);
+
+  // In-memory filter: keep absences that may overlap [startAt, endAt). The
+  // Firestore query already excluded past absences (endAt < startAt); here
+  // we further drop future-only absences (startAt >= endAt). D-018 Caller
+  // contract permits a superset, this just tightens it a bit.
+  const absences: Absence[] = absencesSnap.docs
+    .map((snap) => fromFirestore<Absence>(snap))
+    .filter((a) => a.startAt.getTime() < endAt.getTime());
+
+  // Defensive: settings doc may not exist yet (early salon setup). Treat as
+  // "no overrides configured" — slot validation uses pure weeklyHours.
+  // Uses convertTimestampsToDate (not fromFirestore) because SalonSettings
+  // is a singleton without an `id` field (doc ID is hardcoded "main"); same
+  // pattern as CustomerProfile read below (ř. 338).
+  const override: BusinessHoursOverride[] = settingsSnap.exists
+    ? convertTimestampsToDate<SalonSettings>(settingsSnap.data())
+        .businessHoursOverride ?? []
+    : [];
 
   return {
     stylist,
@@ -212,7 +256,80 @@ export async function prepareBooking(
     startAt,
     endAt,
     totalPrice,
+    absences,
+    override,
   };
+}
+
+/**
+ * Map a `SlotRejectionReason` from `checkSlot` to an `HttpsError` shape
+ * (code + Czech message + typed details payload for client-side handling).
+ *
+ * Most reasons are user-facing precondition failures (`failed-precondition`)
+ * and the message can be surfaced directly. Two reasons are **defensive**
+ * (`not_qualified` / `in_past`) — they should have been caught earlier in
+ * `prepareBooking` (ř. 156-165 / ř. 98). Reaching them via `checkSlot`
+ * indicates a consistency bug between the two validation layers; map to
+ * `internal` and log so observability flags the bug instead of masking it
+ * as a generic precondition failure.
+ *
+ * `booking_conflict` is mapped to `aborted` defensively too: the wrapper
+ * passes `bookings: []` so the race-check stays inside the Firestore
+ * transaction; this reason should be unreachable pre-txn, but if a future
+ * change accidentally exposes it, `aborted` signals the right retry hint.
+ *
+ * `details: { reason }` lets the client switch on a typed code (E1) — e.g.
+ * suggest "try a later slot" for `too_soon` vs "try a different stylist"
+ * for `absence` — without parsing the human-readable message string.
+ */
+function mapSlotReasonToError(
+  reason: SlotRejectionReason,
+  minLeadTimeMinutes: number,
+): { code: "failed-precondition" | "internal" | "aborted"; message: string } {
+  switch (reason) {
+    case "too_soon": {
+      // Dynamic hours per E2 — message stays accurate if the default is tuned.
+      const hours = Math.max(1, Math.round(minLeadTimeMinutes / 60));
+      return {
+        code: "failed-precondition",
+        message: `Rezervaci je nutné vytvořit alespoň ${hours}h předem.`,
+      };
+    }
+    case "salon_closed":
+      return {
+        code: "failed-precondition",
+        message: "Salon je v tento den uzavřen.",
+      };
+    case "outside_working_hours":
+      return {
+        code: "failed-precondition",
+        message: "Stylista v tento čas nepracuje.",
+      };
+    case "absence":
+      return {
+        code: "failed-precondition",
+        message: "Stylista má v tento čas absenci.",
+      };
+    case "not_qualified":
+    case "in_past":
+      // Defensive: prepareBooking already rejects these. Reaching here means
+      // a bug — surface as internal so logs flag it instead of masking.
+      console.warn(
+        `checkSlot defensive reach: ${reason} — prepareBooking validation drift`,
+      );
+      return {
+        code: "internal",
+        message: "Vnitřní chyba validace rezervace.",
+      };
+    case "booking_conflict":
+      // Wrapper passes bookings: []; this should be unreachable pre-txn. If
+      // it ever fires, "aborted" tells the client to retry (the transaction
+      // is the authoritative race-check anyway).
+      return {
+        code: "aborted",
+        message: "Termín byl právě obsazen, zkuste jiný čas.",
+      };
+  }
 }
 
 /**
@@ -240,6 +357,41 @@ export const createBooking = onCall(async (request) => {
   // --- 2. Load + validate + price (no persistence; throws typed HttpsError). ---
   const prepared = await prepareBooking(input);
 
+  // --- 2b. Time-sensitive validation via shared checkSlot (D-018 integration). ---
+  // This catches the static failures cheaply, BEFORE the transaction starts:
+  // working hours, absence, salon override, lead time. Overlap with existing
+  // bookings stays INSIDE the transaction (race-safe re-check below) — so we
+  // pass `bookings: []` here, keeping checkSlot the single source of slot-
+  // validity truth without duplicating the race logic.
+  //
+  // `now` is created HERE and reused for both the lead-time check AND every
+  // write below — temporal consistency per D-018 BS-2 (avoids drift between
+  // the lead-time gate and bookings.createdAt).
+  const now = new Date();
+  const minLeadTimeMinutes = DEFAULT_MIN_LEAD_TIME_MINUTES;
+  const check = checkSlot(
+    prepared.startAt,
+    {
+      stylist: prepared.stylist,
+      absences: prepared.absences,
+      bookings: [], // race-check stays inside the Firestore transaction
+    },
+    {
+      services: prepared.services,
+      serviceLengths: prepared.serviceLengths,
+      // One-shot window: just the slot itself (from = start, to = end).
+      from: prepared.startAt,
+      to: prepared.endAt,
+      now,
+      override: prepared.override,
+      minLeadTimeMinutes,
+    },
+  );
+  if (!check.valid) {
+    const mapped = mapSlotReasonToError(check.reason, minLeadTimeMinutes);
+    throw new HttpsError(mapped.code, mapped.message, { reason: check.reason });
+  }
+
   // --- Identifiers & secret derived before the transaction (pure, no I/O). ---
   const bookingRef = db.collection("bookings").doc();
   const bookingId = bookingRef.id;
@@ -251,7 +403,6 @@ export const createBooking = onCall(async (request) => {
     .digest("hex")
     .slice(0, 32);
   const profileRef = db.collection("customerProfiles").doc(phoneHash);
-  const now = new Date();
 
   // --- 3. Transaction: slot re-check + atomic writes ---
   await db.runTransaction(async (tx) => {
