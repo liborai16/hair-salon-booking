@@ -11,7 +11,7 @@
   "scripts": {
     "dev": "npm run dev --workspace=web",
     "build": "npm run build --workspace=web",
-    "test": "npm run test --workspace=web",
+    "test": "npm run test --workspaces --if-present",
     "emulators": "firebase emulators:start",
     "seed": "node scripts/seed.mjs"
   },
@@ -19,6 +19,7 @@
     "node": ">=22"
   },
   "devDependencies": {
-    "firebase-tools": "^15.18.0"
+    "firebase-tools": "^15.18.0",
+    "vitest": "^2.1.9"
   }
 }
