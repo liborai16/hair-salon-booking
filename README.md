@@ -4,7 +4,7 @@ Případová studie pro výběrové řízení — webová aplikace pro rezervač
 
 **Stack:** Vite + React 19 + TypeScript + Tailwind 4 (frontend) · Firebase Auth + Firestore + Cloud Functions Gen2 + Hosting (backend, region `europe-west3`)
 
-**URL nasazené aplikace:** *To be filled po Day 5+ deploy* — předpokládaný host `https://hair-salon-booking-cs-69a08.web.app` (Firebase Hosting default doména, project ID z `.firebaserc`).
+**URL nasazené aplikace:** **https://hair-salon-booking-cs-69a08.web.app** *(deployed 2026-05-24, e2e verified — public booking + admin login)*
 
 > Pro detailní obhajobu každého architektonického rozhodnutí: [`docs/decisions.md`](docs/decisions.md) (D-001 → D-018). Pro lekce z vývoje: [`docs/LESSONS_LEARNED.md`](docs/LESSONS_LEARNED.md) (L-001 → L-010). Pro aktuální caveaty a debt: [`CLAUDE.md §5`](CLAUDE.md). Pro runtime validation playbook: [`docs/SMOKE_TEST.md`](docs/SMOKE_TEST.md).
 
@@ -163,7 +163,7 @@ Po `firebase deploy --only hosting` (viz §4) je live Firestore + Auth prázdný
 
 ## 4. Nasazení
 
-**Status:** *Production deploy plánován Day 5+. URL doplněno po deploy.*
+**Status:** ✅ **DEPLOYED 2026-05-24** at **https://hair-salon-booking-cs-69a08.web.app** — production seed run (`npm run seed:prod`), full e2e booking flow + admin login verified live (commit `f7bcb05` fixed Web App config gap discovered during prod smoke).
 
 **Před prvním deployem do vlastního Firebase projektu:**
 
@@ -420,14 +420,14 @@ Checklist všech požadavků z [`D:\zadani\case-study-hairsalon.pdf`](file:///D:
 | Majitelka: správa služeb | ✅ | `ServicesPage.tsx` (owner-only) |
 | Backend Firebase | ✅ | Auth + Firestore + Functions Gen2 + Hosting (region europe-west3) |
 | Frontend libovolný | ✅ | Vite + React 19 + TS + Tailwind 4 |
-| Reálný hosting | ⚠️ | Deploy plánován Day 5+ (URL v §3) |
+| Reálný hosting | ✅ | Firebase Hosting eur3 Firestore + europe-west3 Functions; live URL operational, public booking + admin login smoke-tested 2026-05-24 |
 | `docker compose up` lokálně | ✅ | `docker-compose.yml` + Dockerfile.emulator |
 | E-mail/SMS mock OK, README zmiňuje produkční volbu | ✅ | §6 bod 12-13 + §10 |
 | SSO / OAuth nepovinné, basic e-mail+password OK | ✅ | Firebase Auth email+password |
 | Žádná platební brána | ✅ | IBAN + SPAYD plan (§10) |
 | README — architektura | ✅ | §2 |
 | README — pokyny ke spuštění | ✅ | §3 |
-| README — URL nasazení | ⚠️ | placeholder Day 5+ |
+| README — URL nasazení | ✅ | Live at `https://hair-salon-booking-cs-69a08.web.app` (§3 header + §4 status) |
 | README — předpoklady | ✅ | §6 (19 položek) |
 | README — co by se dodělalo | ✅ | §7 |
 | README — co jinak v produkci | ✅ | §8 |

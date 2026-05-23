@@ -165,8 +165,9 @@ ty půjdou do `README §6` na Day 6). Tahle sekce se mění, jak práce postupuj
 - **D5 (cross-module phoneHash duplication) RESOLVED** via `5418ba7` (Web Crypto API lift to `@hsb/shared/customer-hash` — D-013 SDK-agnostic stance honored; functions + seed + future UI share single source).
 - **TODO(day-3) z BLOK B vyřízeno** — `createBooking.ts` integrated s `checkSlot` (single source of slot-validity truth v real server flow).
 - Plný snapshot v `docs/SESSION_HANDOFF_2026-05-22.md` (refresh due — defer to next docs touch); decisions D-001 → D-018; lessons L-001 → L-010.
+- **Production deploy COMPLETE 2026-05-24** — Blaze plan + Firestore eur3 + Auth Email/Password + Functions europe-west3 + Hosting live at `https://hair-salon-booking-cs-69a08.web.app`. Production seed run (commit `6898c3e`). Web App config gap surfaced + fixed (commit `f7bcb05` — placeholder apiKey fallback would have stayed silent without prod smoke; lesson learned documented v SMOKE_TEST §7). E2E user flow (public booking + admin login) smoke-tested live.
 
-**Next milestone:** UI booking flow + admin UI (web/ workspace). Backend layer complete; UI consumes via Cloud Functions + public Firestore reads.
+**Case study delivery:** COMPLETE. Live URL: `https://hair-salon-booking-cs-69a08.web.app` (README §3 header + §4 status + §13 audit checklist ✅).
 
 ### 🔴 Runtime smoke-test gap (BLOK B + D-018 integration)
 
