@@ -54,9 +54,11 @@ service cloud.firestore {
       allow write: if isOwner();
     }
 
-    // absences/{id} — STAFF READ (recepční sees stylist schedule), OWNER WRITE
+    // absences/{id} — PUBLIC READ (slot picker needs availability windows;
+    // `reason` field is internal note, not customer PII per D-013 — MVP
+    // tradeoff vs CF aggregation endpoint), OWNER WRITE
     match /absences/{id} {
-      allow read: if isStaff();
+      allow read: if true;
       allow write: if isOwner();
     }
 
