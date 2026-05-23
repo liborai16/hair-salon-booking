@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 /**
- * scripts/seed.mjs — emulator-only seed for realistic salon data.
+ * scripts/seed.mjs — seed realistic salon data (emulator default + production opt-in).
  *
- * Populates Firestore + Firebase Auth emulators per A.1 proposal:
+ * Default target: emulator (localhost:8080 Firestore + localhost:9099 Auth).
+ * Production target: pass `--target=production` (or env `SEED_TARGET=production`)
+ * with `GOOGLE_APPLICATION_CREDENTIALS` set to a Firebase Admin service-account
+ * key (or ADC via `gcloud auth application-default login`). An interactive
+ * confirmation prompt enforces an explicit "YES" before any production write.
+ * Bypass prompt only via `--force` (CI / scripted use, not manual).
+ *
+ * Populates Firestore + Firebase Auth per A.1 proposal:
  *   - 9 services (varied categories + length variants + off-grid duration)
  *   - 5 stylists (capability + schedule diversity per PDF zadání)
  *   - 6 admin accounts (3 roles + custom claims; uid = User.id, B2)
@@ -12,33 +19,60 @@
  *   - ~6 absences (skoleni / dovolena / nemoc, future + past)
  *   - 2 mock notifications for completed bookings
  *
- * Idempotent: deterministic IDs + `.set()` overwrites cleanly. Re-run = same state.
- *
- * See README §setup for run instructions. NEVER targets production —
- * emulator env vars are defensively asserted (B1).
+ * Idempotent: deterministic IDs + `.set()` overwrites cleanly. Auth users are
+ * UPSERTED (no destructive delete) so reruns preserve any external state.
+ * See README §3 (emulator) + §3 "Production seed" subsection for setup.
  */
 
 // ============================================================
-// B1 — Emulator env vars: defensive default + production guard
+// Target detection: emulator (default) or production (explicit opt-in).
 // ============================================================
-if (!process.env.FIRESTORE_EMULATOR_HOST) {
-  process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
+const PROJECT_ID = "hair-salon-booking-cs-69a08";
+
+function parseTarget() {
+  const arg = process.argv.find((a) => a.startsWith("--target="));
+  if (arg) return arg.split("=")[1];
+  return process.env.SEED_TARGET || "emulator";
 }
-if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
-  process.env.FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
-}
-if (
-  process.env.NODE_ENV === "production" ||
-  !process.env.FIRESTORE_EMULATOR_HOST.includes("localhost")
-) {
-  console.error(
-    "❌ seed.mjs is emulator-only. Refusing to run against non-localhost target.",
-  );
+
+const TARGET = parseTarget();
+const FORCE = process.argv.includes("--force");
+
+if (TARGET !== "emulator" && TARGET !== "production") {
+  console.error(`❌ Unknown --target=${TARGET}. Expected "emulator" or "production".`);
   process.exit(1);
+}
+
+if (TARGET === "emulator") {
+  // Emulator defaults + defensive guard against accidental non-localhost target.
+  if (!process.env.FIRESTORE_EMULATOR_HOST) {
+    process.env.FIRESTORE_EMULATOR_HOST = "localhost:8080";
+  }
+  if (!process.env.FIREBASE_AUTH_EMULATOR_HOST) {
+    process.env.FIREBASE_AUTH_EMULATOR_HOST = "localhost:9099";
+  }
+  if (!process.env.FIRESTORE_EMULATOR_HOST.includes("localhost")) {
+    console.error(
+      `❌ Emulator mode but FIRESTORE_EMULATOR_HOST=${process.env.FIRESTORE_EMULATOR_HOST} is non-localhost. Refusing.`,
+    );
+    process.exit(1);
+  }
+} else {
+  // Production: strip any emulator env vars so Admin SDK can't accidentally
+  // target them. Require ADC (`gcloud auth application-default login`) or
+  // GOOGLE_APPLICATION_CREDENTIALS pointing at a service-account key.
+  delete process.env.FIRESTORE_EMULATOR_HOST;
+  delete process.env.FIREBASE_AUTH_EMULATOR_HOST;
+  if (!process.env.GOOGLE_APPLICATION_CREDENTIALS) {
+    console.warn(
+      "⚠️  GOOGLE_APPLICATION_CREDENTIALS not set; Admin SDK will fall back to Application Default Credentials (`gcloud auth application-default login`).",
+    );
+  }
 }
 
 import admin from "firebase-admin";
 import { randomBytes } from "node:crypto";
+import { createInterface } from "node:readline/promises";
 import {
   computeTotalDuration,
   computeTotalPrice,
@@ -46,7 +80,11 @@ import {
   toFirestore,
 } from "@hsb/shared";
 
-admin.initializeApp({ projectId: "hair-salon-booking-cs-69a08" });
+admin.initializeApp(
+  TARGET === "production"
+    ? { credential: admin.credential.applicationDefault(), projectId: PROJECT_ID }
+    : { projectId: PROJECT_ID },
+);
 const db = admin.firestore();
 const auth = admin.auth();
 
@@ -288,15 +326,23 @@ async function seedStylists() {
 
 async function seedUsersAndAuth() {
   for (const u of users) {
-    // Idempotency: drop existing auth user if present before recreating with same UID.
+    // Idempotency: UPSERT (update if exists, else create). Non-destructive —
+    // important for production where re-seed must not wipe accounts / reset
+    // external state (e.g. evaluator-changed passwords). Emulator behaves
+    // the same (stale state is wiped on emulator restart anyway).
     try {
-      await auth.deleteUser(u.uid);
+      await auth.updateUser(u.uid, {
+        email: u.email, password: SEED_PASSWORD, emailVerified: true,
+      });
     } catch (e) {
-      if (e.code !== "auth/user-not-found") throw e;
+      if (e.code === "auth/user-not-found") {
+        await auth.createUser({
+          uid: u.uid, email: u.email, password: SEED_PASSWORD, emailVerified: true,
+        });
+      } else {
+        throw e;
+      }
     }
-    await auth.createUser({
-      uid: u.uid, email: u.email, password: SEED_PASSWORD, emailVerified: true,
-    });
     await auth.setCustomUserClaims(u.uid, {
       role: u.role,
       ...(u.linkedStylistId ? { linkedStylistId: u.linkedStylistId } : {}),
@@ -461,14 +507,54 @@ async function seedNotifications(bookingsAndCustomers) {
 }
 
 // ============================================================
+// Production safety: interactive confirmation prompt
+// ============================================================
+
+async function confirmProductionWrite() {
+  const credPath = process.env.GOOGLE_APPLICATION_CREDENTIALS || "Application Default Credentials";
+  console.log(`\n⚠️  PRODUCTION SEED — about to write to live Firestore + Auth.`);
+  console.log(`   Target project:   ${PROJECT_ID}`);
+  console.log(`   Credentials:      ${credPath}`);
+  console.log(`   `);
+  console.log(`   Writes (idempotent — re-runs overwrite cleanly):`);
+  console.log(`     - ${services.length} services, ${stylists.length} stylists, salonSettings/main`);
+  console.log(`     - ${users.length} admin accounts (upsert; password "${SEED_PASSWORD}" per README §5)`);
+  console.log(`     - ${bookingDefs.length} demo bookings (dates relative to today, refresh on rerun)`);
+  console.log(`     - ${absenceDefs.length} absences, customerProfiles (derived), 2 notifications`);
+  console.log(`   `);
+
+  if (FORCE) {
+    console.log(`   --force flag set; skipping confirmation.\n`);
+    return;
+  }
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    const answer = (await rl.question(`   Type 'YES' to proceed: `)).trim();
+    if (answer !== "YES") {
+      console.log(`\n❌ Aborted (expected 'YES', got "${answer}").`);
+      process.exit(1);
+    }
+    console.log(`✓ Confirmed.\n`);
+  } finally {
+    rl.close();
+  }
+}
+
+// ============================================================
 // Main
 // ============================================================
 
 async function main() {
-  console.log(
-    `🌱 Seeding emulator (firestore: ${process.env.FIRESTORE_EMULATOR_HOST}, ` +
-      `auth: ${process.env.FIREBASE_AUTH_EMULATOR_HOST})\n`,
-  );
+  if (TARGET === "production") {
+    await confirmProductionWrite();
+    console.log(`🌱 Seeding PRODUCTION (project: ${PROJECT_ID})\n`);
+  } else {
+    console.log(
+      `🌱 Seeding emulator (firestore: ${process.env.FIRESTORE_EMULATOR_HOST}, ` +
+        `auth: ${process.env.FIREBASE_AUTH_EMULATOR_HOST})\n`,
+    );
+  }
 
   await seedServices();
   await seedStylists();

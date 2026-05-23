@@ -161,3 +161,7 @@ packages/*/dist/
 # OS-generated files
 .DS_Store
 Thumbs.db
+
+# Service account keys / other secrets — NEVER commit
+# (e.g. secrets/firebase-admin-sa.json used by `npm run seed:prod`)
+secrets/

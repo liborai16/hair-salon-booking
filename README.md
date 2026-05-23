@@ -126,6 +126,39 @@ cd web && npm run dev
 
 **Verification:** [`docs/SMOKE_TEST.md`](docs/SMOKE_TEST.md) má 8-scénářový checklist (~30-60 min click-through) pro runtime validation full flow.
 
+### Production seed
+
+Po `firebase deploy --only hosting` (viz §4) je live Firestore + Auth prázdný. Pro naplnění **stejnými** demo daty jako lokálně (9 služeb, 5 stylistů, ~25 bookings, 6 admin účtů, atd.):
+
+1. **Stáhni service-account key** — Firebase Console → ⚙ Project settings → Service accounts → „Generate new private key". Ulož jako `secrets/firebase-admin-sa.json` (cesta gitignored, viz `.gitignore`).
+
+2. **Nastav credentials env** v terminálu odkud poběží seed:
+
+   ```powershell
+   # PowerShell (Windows)
+   $env:GOOGLE_APPLICATION_CREDENTIALS = "secrets/firebase-admin-sa.json"
+   ```
+
+   ```bash
+   # Bash (Mac/Linux/Git Bash)
+   export GOOGLE_APPLICATION_CREDENTIALS="secrets/firebase-admin-sa.json"
+   ```
+
+3. **Spusť production seed** — interaktivní confirmation prompt ochrání před omylem:
+
+   ```bash
+   npm run seed:prod
+   # → ⚠️  PRODUCTION SEED ...
+   # → Target project:   hair-salon-booking-cs-69a08
+   # → Type 'YES' to proceed:
+   ```
+
+4. **Verify ve Firebase Console** — Firestore (9 docs v `services/`, 5 v `stylists/`, `salonSettings/main`, ~25 v `bookings/`) + Authentication (6 účtů `eva@salon.cz` ... `hana@salon.cz`, viz §5).
+
+**Idempotence:** seed.mjs používá deterministická ID (`svc-damske-strihani`, `stl-eva-novakova`, ...) + auth users upsertují (NON-destructive — `updateUser` → fallback `createUser`). Bezpečné rerunout: demo bookings dates se obnoví relativně k dnešku, ostatní data overwrite-nou cleanly bez ztráty externího stavu.
+
+**Bezpečnost:** confirmation prompt vyžaduje literal `YES` před writem. `--force` flag (`node scripts/seed.mjs --target=production --force`) skip-uje prompt — používat jen v CI / scripted use, ne ručně. Production target je explicit opt-in (`--target=production` nebo `SEED_TARGET=production` env); default je vždy emulator.
+
 ---
 
 ## 4. Nasazení

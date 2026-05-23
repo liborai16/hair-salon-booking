@@ -367,7 +367,28 @@ Status: **known limitation, NE blocker** — viz CLAUDE.md §5 + commit
 
 ---
 
-## 7. Cross-references
+## 7. Production smoke (post-deploy)
+
+Po `firebase deploy --only hosting` + `npm run seed:prod` (viz [`README §3 "Production seed"`](../README.md#3-jak-spustit-lokálně)):
+
+1. **Otevři live URL** — `https://hair-salon-booking-cs-69a08.web.app` (nebo dle vlastního project ID v `.firebaserc`).
+
+2. **Landing rendering** — Salon Krásná branding + „Rezervovat termín" CTA viditelné. DevTools console: bez errorů (allow Firebase init log messages).
+
+3. **Service picker non-empty** — klik CTA → `/book` → step 1 ukáže **9 služeb** v 5 kategoriích (Stříhání, Foukaná, Barvení, Ošetření, Svatební). Pokud prázdný → seed neproběhl nebo nedosáhl produkce; check Firebase Console → Firestore → `services/` collection.
+
+4. **Admin login funguje** — `/admin/login` → `eva@salon.cz` / `Heslo123!` → redirect na `/admin/dashboard` se sidebar 5 položek (owner role).
+
+5. **End-to-end rezervace na live** — proveď zkrácený scénář A (vyber službu → slot → vyplň test customer → submit) → ověř v Firebase Console Firestore že vznikl `bookings/{20-char-id}` doc + sourozenecký `bookingCustomers/{same-id}` s PII (name/phone/email/cancelToken).
+
+**Pokud něco selže:**
+- Empty service picker → seed neproběhl. Check `npm run seed:prod` output + Firebase Console Firestore.
+- Login fail → custom claims neprošly. Re-run `seed:prod`; check Auth tab v Console na 6 účtů.
+- `createBooking` callable error → check Cloud Functions Logs v Firebase Console (region `europe-west3`); pravděpodobně chybí composite index (viz [`README §4`](../README.md#4-nasazení) deploy sekvence).
+
+---
+
+## 8. Cross-references
 
 - **Architektura:** [`CLAUDE.md §3`](../CLAUDE.md) + [`docs/decisions.md`](decisions.md) D-001 → D-018
 - **Aktuální stav + debt:** [`CLAUDE.md §5`](../CLAUDE.md)
