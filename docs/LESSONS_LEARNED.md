@@ -205,3 +205,91 @@ souboru s re-exportem".
 **Mantra (princip):** Re-export evaluuje závislost před tělem modulu.
 **Akční pravidlo:** Side-effect konfigurace (region, options, monkeypatche)
 patří **upstream** — do importované závislosti, ne vedle definic, které ji čtou.
+
+---
+
+## Day 3 — 2026-05-23
+
+### L-009: TZ correctness — empirický probe > argument z paměti
+
+**Incident (D-018 D6 návrh):**
+Při návrhu Intl-based TZ konverze (wall-clock Europe/Prague ↔ UTC instant)
+jsem chtěla zamítnout `toLocaleString` round-trip pattern jako rozbité — z
+paměti jsem si pamatovala, že non-ISO Date parsing je host-specific v
+ECMAScript spec a u DST hran může selhat.
+
+**Co se ukázalo (ad-hoc probe `_tz_probe.mjs`):**
+Oba kandidáty (A = `toLocaleString` round-trip, B = `Intl.DateTimeFormat.formatToParts`
++ `Date.UTC`) na 4 testovacích datech (winter CET, summer CEST, spring-forward
+2026-03-29, fall-back 2026-10-25). **Oba dali identické správné instanty**
+pro všechny 4 případy — argument z paměti („A je rozbité u DST hran") byl
+**prakticky nepravdivý** pro salon working hours.
+
+**Pravidlo / lesson:**
+Než postavím architectural decision na tvrzení o tooling behavior, **spusť
+ad-hoc probe**. 5-řádkový skript ušetří iteraci nad falešným argumentem. V
+tomhle případě probe stejně potvrdil rozhodnutí (variant B z principiálních
+důvodů — host-spec parsing risk, ms precision, hourCycle midnight — ne kvůli
+DST behavior), ale **z jiných důvodů než jsem původně tvrdila**. Calibrated
+rebellion welcome i proti vlastnímu plánu, když empirie nesouhlasí.
+
+**Mechanika probe:**
+- Napiš jednorázový `.mjs` skript co testuje hypotézu (10 řádků stačí).
+- Spusť na realistických datech (včetně edge cases — DST hrany pro TZ kód).
+- Smaž po verifikaci (ne permanent artefakt — je to scaffold pro decision).
+- **Empirický výsledek baked do decision recordu** — D-018 D6 obsahuje výsledek
+  probe inline + tyto 4 dates × 2 patterns + 3 day-lengths se staly Day 5
+  regression anchor (`availability.test.ts`).
+
+**Mantra:** „Empirický probe > argument z paměti." Před tooling-based
+rozhodnutím spusť, neopakuj domněnku.
+
+---
+
+### L-010: Preflight discipline — read tooling signatures/configs empirically
+
+**Incident pattern (Day 3, 3 instances v one session):**
+Třikrát během D-018 implementace jsem narazila na **same root cause: assumed
+tooling/library behavior bez empirical verification**:
+
+1. **`noUncheckedIndexedAccess` tuple destructure** (sub-task A apply).
+   Předpokládala jsem, že `ymd.split("-").map(Number)` destructure projde.
+   `tsc` failed: `'D' is possibly 'undefined'`. Fix: tuple assertion
+   `as [number, number, number]` + documented precondition. Měla jsem
+   zkontrolovat `packages/shared/tsconfig.json` před draftem.
+
+2. **`vitest --passWithNoTests` exit code** (Day 5 setup verify).
+   Předpokládala jsem, že vitest s 0 testy exit 0 (treated as „no tests run,
+   OK"). Reality: vitest 2.x exits 1 default. Fix: `--passWithNoTests` flag.
+   Měla jsem zkontrolovat vitest CLI behavior před `npm test` verify.
+
+3. **`fromFirestore<T extends { id: string }>` constraint** (createBooking integration).
+   Předpokládala jsem, že `fromFirestore` přijímá libovolný interface.
+   `tsc` failed: `Property 'id' is missing in type 'SalonSettings'`. Fix:
+   `convertTimestampsToDate` (no constraint). Měla jsem zkontrolovat
+   `firestore-helpers.ts` signature před edit.
+
+**Společný root cause:**
+„Assumed behavior" bez čtení tooling/library kódu/configu. Všechny tři byly
+caught (tsc / npm exit), ale stálo to per-instance ~2 min na fix + flag +
+honest report. Cumulative: ~6 min friction, ~3 retry commits.
+
+**Proč zapsat jako pattern, ne 3× separate file-it-and-forget:**
+Single-instance gotcha (např. L-001 path resolution) je „one-off context, fix
++ move on". Tři výskyty během jedné session — i když každý je jiný flag
+(noUncheckedIndexedAccess / vitest CLI / fromFirestore generic) — sdílí
+**identický root cause** (assumed behavior bez signature/config read).
+Recurring pattern = systematic preflight check, ne post-hoc fix per instance.
+
+**Pravidlo:**
+**Před invoking unfamiliar tooling nebo generic helpers, read signature /
+config empirically.** Konkrétně:
+- Před `tsc --noEmit` na novém kódu: zkontroluj `tsconfig.json` strict flags
+  (zvláště `noUncheckedIndexedAccess`, `noUnusedLocals`).
+- Před `npm test` poprvé: zkontroluj CLI behavior (default exit codes, flags).
+- Před použitím generic helper (`fromFirestore<T>`, `convertTimestampsToDate<T>`):
+  read source pro constraint / shape requirements.
+
+Reading time ~30 sec; fix-after-error friction ~2 min. **5–7× ROI.**
+
+**Mantra:** „Read tooling before invoking — 30 sec saves 2 min × N."

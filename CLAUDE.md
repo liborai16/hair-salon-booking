@@ -154,23 +154,84 @@ Developer-facing caveaty k *aktuálnímu* stavu rozpracovaného repa (ne durable
 design rozhodnutí — ta jsou v `docs/decisions.md`; ne dlouhodobé limitace MVP —
 ty půjdou do `README §6` na Day 6). Tahle sekce se mění, jak práce postupuje.
 
-### Runtime smoke-test gap (Day 2 BLOK B)
+### Aktuální stav (2026-05-23 EOD)
 
-**Stav:** Cloud Function `createBooking` (task #3) je ověřená přes `tsc` build
-+ ESLint (oboje EXIT 0), ale **nikdy reálně neběžela**. `compiles ≠ runs`.
+- **Day 2 BLOK B = 5/5 ✅** (esbuild D-015 finalized at `a0f7745`)
+- **Day 3 = D-018 milestone complete** (7-commit chain `610ca48` → `9585409`)
+- **TODO(day-3) z BLOK B vyřízeno** — `createBooking.ts` integrated s `checkSlot` (single source of slot-validity truth v real server flow)
+- Plný snapshot v `docs/SESSION_HANDOFF_2026-05-22.md` (refreshed); decisions D-001 → D-018; lessons L-001 → L-010.
 
-**Proč:** runtime smoke-test vyžaduje předpoklady, které jsou samy o sobě další
-Day 2 tasky, zatím nehotové:
-- **seed data** (`scripts/seed.mjs` — task #5/Day 2) pro `services` + `stylists`,
-  bez kterých handler nemá co načíst,
-- **Firestore emulator** běžící (přes `docker-compose`),
-- **auth + rules** (Day 2 tasky) pro realistický happy/expectation path.
+### 🔴 Runtime smoke-test gap (BLOK B + D-018 integration)
 
-**Plán:** jakmile bude seed + emulátor, provést smoke-test **obou** booking
-handlerů (`createBooking` + `manageBookingByToken`) najednou — happy path
-(vznik rezervace + zápis 4 collections) i odmítavé cesty (obsazený slot →
-`failed-precondition`, neexistující stylista → `not-found`).
+**Stav:** Cloud Functions `createBooking` (vč. nového D-018 integration:
+absences + salonSettings reads + `checkSlot` pre-txn validation + typed error
+mapping) a `manageBookingByToken` jsou ověřené přes `tsc` + ESLint exit 0,
+ale **nikdy reálně neběžely**. `compiles ≠ runs`.
 
-**Pravidlo, které z toho plyne:** „build + lint zelené" hlásíme jako *staticky
-ověřeno*, ne jako *funguje*. Runtime verifikace je samostatný, explicitně
-trackovaný krok — nezaměňovat.
+**Proč:** runtime smoke-test vyžaduje:
+- **seed data** (`scripts/seed.mjs` — Day 2 task, nehotovo)
+- **Firestore emulátor** (přes `docker-compose`)
+- **auth + rules** (Day 2 tasky; rules pořád `if false` skeleton)
+- Nově: **composite index** `(absences: stylistId ASC, endAt ASC)` deploy first (jinak D-018 absences query fails)
+
+**Plán:** smoke-test all paths najednou — `createBooking` happy (4-collection
+write) + nové D-018 rejection paths (`too_soon` / `salon_closed` /
+`outside_working_hours` / `absence`) + `manageBookingByToken` view/cancel/
+idempotent.
+
+**Pravidlo:** „build + lint zelené" hlásíme jako *staticky ověřeno*, ne jako
+*funguje*. Runtime verifikace je samostatný, explicitně trackovaný krok.
+
+### 🟡 Day 6 deferred items (deploy + cleanup)
+
+**Z D-015 (esbuild deploy):**
+- `--enable-source-maps` runtime flag — bez něj `sourcemap:true` neremapuje cloud stack traces
+- `$RESOURCE_DIR` Windows verify — predeploy lint+build kroky neotestované; trivial fix: replace s `functions`
+
+**Z D-018 integration (9585409):**
+- **Index deployment sekvence:** composite `(absences: stylistId, endAt)`
+  musí build PŘED functions deploy:
+  1. `firebase deploy --only firestore:indexes` (wait for build complete)
+  2. `firebase deploy --only functions`
+  Document v README §setup. Jinak first invocation falls back / fails.
+
+### 🟢 Architektonický debt — known patterns (Day 3 audit)
+
+Ne urgentní, ne blockery. Documented pro future cleanup awareness.
+
+**D1 — Dvě deserialization paths v functions handlers.**
+`fromFirestore<T extends { id: string }>` vs `convertTimestampsToDate<T = unknown>`.
+SalonSettings (singleton, doc ID "main") forces escape hatch přes
+convertTimestampsToDate. Pattern už existuje (CustomerProfile + nově SalonSettings).
+Cleanup candidate: `fromFirestoreSingleton<T>` helper / loosen generic / add
+`id: 'main'` literal.
+
+**D2 — `bookings: []` coupling mezi createBooking integration a D-018 semantikou.**
+Wrapper passuje empty array (race-check zůstává v transakci, správně per D-018).
+Future maintainer měnící `checkSlot` na use bookings beyond overlap by silently
+broke this. Mitigation: JSDoc na `StylistAvailabilityInput.bookings` reference
+D-018 Caller contract. Risk low (D-018 stable).
+
+**D3 — Vestigial `from` / `to` v `SlotQuery` pro atomic checkSlot.**
+`checkSlot` ignoruje from/to (jen generators je consume). Wrapper passuje
+`from: startAt, to: endAt` — hodnoty irrelevant. Cleanup: split na
+`CheckSlotQuery` (no from/to) + `GenerateSlotsQuery extends it`. Ne urgent —
+API stability > minor cleanup.
+
+**D4 — Defensive duplikace `not_qualified` + `in_past`.**
+`prepareBooking` ř. 156-165 (qualification) + ř. 98 (in_past) + `checkSlot`
+checks #1/#2 = same validation twice. `mapSlotReasonToError` maps na `internal`
+pokud checkSlot reach them (fails loudly při divergenci). Cleanup: consolidate
+post-stability (remove handler pre-checks once checkSlot trusted, nebo udělat
+checkSlot's #1/#2 optional přes flag).
+
+**D5 — `OCCUPYING_STATUSES` cross-module duplication.**
+Defined v `functions/createBooking.ts` ř. 49 + `packages/shared/availability.ts`
+ř. 424. Both immutable Sets, same content. Cleanup: lift to shared single
+source + functions re-import.
+
+### 🟢 MVP-realistic notes (handover checkpoint)
+
+- `minLeadTimeMinutes` hardcoded v wrapperu (`DEFAULT_MIN_LEAD_TIME_MINUTES = 120`).
+  MVP-acceptable; multi-source future (admin override, promotions) by needed
+  request-level config nebo `salonSettings.minLeadTimeMinutes`.
