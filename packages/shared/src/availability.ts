@@ -20,14 +20,16 @@
  * `formatToParts` + `Date.UTC` (D-018 D6, zero-dep).
  */
 
-import { SLOT_GRANULARITY_MIN } from "./pricing.js";
+import { computeTotalDuration, SLOT_GRANULARITY_MIN } from "./pricing.js";
 import type {
   Absence,
   Booking,
+  BookingStatus,
   BusinessHoursOverride,
   Service,
   ServiceLengthMap,
   Stylist,
+  WeeklyHours,
 } from "./types.js";
 
 // ============================================================
@@ -223,7 +225,217 @@ export function overlaps(
 }
 
 // ============================================================
-// Availability API (D-018) — signatures; bodies in next phase
+// Timezone helpers (D-018 D6) — Intl formatToParts + Date.UTC
+// ============================================================
+
+/**
+ * Map UTC day index (0=Sunday..6=Saturday from `Date.getUTCDay`) to
+ * `WeeklyHours` field name. The order MUST match how the JS `Date` API
+ * numbers weekdays (Sunday=0), not the human "week starts Monday" intuition.
+ */
+const UTC_DAY_TO_WEEKDAY: ReadonlyArray<keyof WeeklyHours> = [
+  "sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+];
+
+/**
+ * Compute the UTC offset (in milliseconds) of `tz` at the given `instant`.
+ *
+ * Internal helper for `wallToInstant`. Uses `Intl.DateTimeFormat.formatToParts`
+ * (NOT `toLocaleString` round-trip — D-018 D6) to avoid host-specific string
+ * parsing. Positive for zones ahead of UTC (Europe/Prague: +3,600,000 ms
+ * winter / +7,200,000 ms summer).
+ */
+function getOffsetMs(instant: Date, tz: string): number {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+  const p = Object.fromEntries(
+    dtf.formatToParts(instant).map((x) => [x.type, x.value]),
+  );
+  const asUTC = Date.UTC(
+    Number(p.year),
+    Number(p.month) - 1,
+    Number(p.day),
+    Number(p.hour),
+    Number(p.minute),
+    Number(p.second),
+  );
+  return asUTC - instant.getTime();
+}
+
+/**
+ * Convert a wall-clock time `(ymd, hhmm)` in zone `tz` to a UTC `Date` instant.
+ *
+ * Implementation: build a "naive UTC" guess from the components, then
+ * subtract the zone offset at that instant (single-pass; sufficient because
+ * the offset is constant within any non-DST-transition hour). DST-aware via
+ * Intl's IANA database. Empirical proof across both 2026 DST edges in
+ * D-018 D6.
+ *
+ * Exported (not private) so Day 5 tests can directly anchor the TZ
+ * regression suite — 4 dates × 2 patterns + 3 day-lengths from the D-018 D6
+ * `_tz_probe`.
+ *
+ * **Precondition (no runtime validation):** `ymd` is `"YYYY-MM-DD"`, `hhmm`
+ * is `"HH:MM"` (24-hour), `tz` is a valid IANA zone name. Bad input yields
+ * an `Invalid Date` or `RangeError` from `Intl`; the caller (generator +
+ * tests) passes already-typed `TimeRange` values from `types.ts`, so
+ * defensive parsing is omitted (KISS).
+ *
+ * **Known undefined zone:** the DST-transition hour itself (Europe/Prague:
+ * 02:00–03:00 on the last March / October Sundays) is inherently ambiguous
+ * — spring-gap is nonexistent, fall-back has two valid UTC instants. Salon
+ * working hours (8–18) never touch this window; see D-018 Known limitations.
+ *
+ * @example
+ *   wallToInstant("2026-07-15", "10:00", "Europe/Prague")
+ *   // → 2026-07-15T08:00:00.000Z  (CEST, UTC+2)
+ *   wallToInstant("2026-01-15", "10:00", "Europe/Prague")
+ *   // → 2026-01-15T09:00:00.000Z  (CET, UTC+1)
+ */
+export function wallToInstant(ymd: string, hhmm: string, tz: string): Date {
+  // Tuple assertion: precondition (documented above) guarantees exactly the
+  // shape "YYYY-MM-DD" / "HH:MM" → 3 / 2 finite numbers. Without the cast,
+  // `noUncheckedIndexedAccess` widens to `(number | undefined)[]` and the
+  // arithmetic below would need redundant guards.
+  const [Y, M, D] = ymd.split("-").map(Number) as [number, number, number];
+  const [h, m] = hhmm.split(":").map(Number) as [number, number];
+  const guess = Date.UTC(Y, M - 1, D, h, m);
+  return new Date(guess - getOffsetMs(new Date(guess), tz));
+}
+
+/**
+ * Convert a UTC `Date` instant to its wall-clock parts in zone `tz`:
+ * calendar date (`ymd`), time-of-day (`hhmm`), and weekday key matching
+ * `WeeklyHours` field names.
+ *
+ * Consumers: the day iterator (needs the wall-clock calendar date for
+ * grouping) and `checkSlot` (needs `weekday` to look up
+ * `stylist.weeklyHours[weekday]`). DST-aware via the same Intl path as
+ * `wallToInstant`.
+ *
+ * Weekday is computed from the wall-clock calendar date via
+ * `Date.UTC(Y, M-1, D).getUTCDay()` — the calendar weekday is a property
+ * of the date itself, independent of TZ, so no locale-dependent string
+ * mapping is needed (avoids the en-US "Mon"/"Tue" label fragility).
+ *
+ * @returns `ymd` formatted `"YYYY-MM-DD"`; `hhmm` formatted `"HH:MM"`
+ *          (24-hour); `weekday` as a `WeeklyHours` key
+ *          (`"monday"` … `"sunday"`).
+ *
+ * @example
+ *   instantToWallParts(new Date("2026-07-15T08:00:00.000Z"), "Europe/Prague")
+ *   // → { ymd: "2026-07-15", hhmm: "10:00", weekday: "wednesday" }
+ */
+export function instantToWallParts(
+  instant: Date,
+  tz: string,
+): { ymd: string; hhmm: string; weekday: keyof WeeklyHours } {
+  const dtf = new Intl.DateTimeFormat("en-US", {
+    timeZone: tz,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const p = Object.fromEntries(
+    dtf.formatToParts(instant).map((x) => [x.type, x.value]),
+  );
+  const ymd = `${p.year}-${p.month}-${p.day}`;
+  const hhmm = `${p.hour}:${p.minute}`;
+  // `getUTCDay()` returns 0-6 and the table has exactly 7 entries, so the
+  // lookup never undefined — assertion satisfies `noUncheckedIndexedAccess`.
+  const weekday = UTC_DAY_TO_WEEKDAY[
+    new Date(
+      Date.UTC(Number(p.year), Number(p.month) - 1, Number(p.day)),
+    ).getUTCDay()
+  ] as keyof WeeklyHours;
+  return { ymd, hhmm, weekday };
+}
+
+/**
+ * Enumerate calendar days touching the window `[from, to)`, expressed as
+ * wall-clock `YYYY-MM-DD` strings in zone `tz`.
+ *
+ * **Why UTC date arithmetic for increment:** UTC has no DST, so
+ * `Date.UTC(Y, M-1, D+1)` is always exactly one calendar day forward —
+ * the "kolik hodin má den" question never arises (D-018). Wall-clock
+ * 23h / 25h days happen on DST edges, but iterating via UTC sidesteps
+ * them entirely.
+ *
+ * A day is included iff its wall-clock `00:00 tz` is before `to`. The
+ * first day is the wall-clock date of `from` (its `00:00` may be earlier
+ * than `from` itself; per-day slot filtering against `from` happens
+ * upstream in the generator, not here).
+ *
+ * @returns Array of `YYYY-MM-DD` strings, ascending. **Empty** if `from >= to`.
+ *
+ * @example
+ *   iterateDays(
+ *     new Date("2026-07-15T08:00:00.000Z"),
+ *     new Date("2026-07-17T08:00:00.000Z"),
+ *     "Europe/Prague",
+ *   )
+ *   // → ["2026-07-15", "2026-07-16", "2026-07-17"]
+ *   //   (third day included: 2026-07-17T00:00 Prague = 2026-07-16T22:00Z < to)
+ */
+export function iterateDays(from: Date, to: Date, tz: string): string[] {
+  const result: string[] = [];
+  if (from >= to) return result;
+  let { ymd } = instantToWallParts(from, tz);
+  while (true) {
+    const dayStart = wallToInstant(ymd, "00:00", tz);
+    if (dayStart >= to) break;
+    result.push(ymd);
+    // Tuple assertion: `ymd` is produced by `instantToWallParts` (well-formed
+    // "YYYY-MM-DD") or by the previous loop iteration (same shape), so the
+    // split is guaranteed to yield 3 finite numbers — see also `wallToInstant`.
+    const [Y, M, D] = ymd.split("-").map(Number) as [number, number, number];
+    const next = new Date(Date.UTC(Y, M - 1, D + 1));
+    ymd =
+      `${next.getUTCFullYear()}-` +
+      `${String(next.getUTCMonth() + 1).padStart(2, "0")}-` +
+      `${String(next.getUTCDate()).padStart(2, "0")}`;
+  }
+  return result;
+}
+
+// ============================================================
+// Private utilities — OCCUPYING_STATUSES + HH:MM ordering
+// ============================================================
+
+/**
+ * Booking statuses that OCCUPY a slot for conflict purposes. Mirrors
+ * `createBooking.ts` ř. 49 (functions/) — duplicated here intentionally
+ * because availability.ts lives in `@hsb/shared` and the canonical
+ * definition is currently in functions. Future cleanup: lift to a single
+ * source in shared and have createBooking re-import. Out-of-scope for
+ * D-018 bodies; flagged as drift risk if statuses ever diverge.
+ */
+const OCCUPYING_STATUSES = new Set<BookingStatus>(["pending", "confirmed"]);
+
+/**
+ * Lexicographic max/min for zero-padded `"HH:MM"` strings. Because both
+ * fields are fixed-width and zero-padded, string ordering matches
+ * chronological ordering (`"08:30" < "10:00"`). Used by `checkSlot` to
+ * intersect a stylist's weeklyHours with a salon-level override window
+ * (D-018 D2) without converting to instants first — the intersection is
+ * a wall-clock concept, not an instant concept.
+ */
+function maxHHMM(a: string, b: string): string { return a > b ? a : b; }
+function minHHMM(a: string, b: string): string { return a < b ? a : b; }
+
+// ============================================================
+// Availability API (D-018)
 // ============================================================
 
 /**
@@ -256,11 +468,8 @@ export function overlaps(
  *               validation the caller passes the exact start the client
  *               requested (no alignment enforced — alignment is the
  *               generator's, not `checkSlot`'s, contract).
- * @param input  Per-stylist data. Caller MUST deserialize Firestore
- *               Timestamps → `Date` (`fromFirestore`, D-013) and pre-filter
- *               `bookings` to occupying statuses (see `StylistAvailabilityInput`
- *               and D-018 Caller contract). Generator is defensively robust;
- *               contract is caller-filters.
+ * @param input  Per-stylist data; caller responsibilities documented on
+ *               `StylistAvailabilityInput` (D-018 Caller contract).
  * @param query  Shared query parameters incl. injected `now`.
  *
  * @returns `{ valid: true }` if bookable; otherwise
@@ -281,8 +490,94 @@ export function checkSlot(
   input: StylistAvailabilityInput,
   query: SlotQuery,
 ): SlotCheck {
-  void start; void input; void query;
-  throw new Error("TODO(day-3 bodies): see D-018 architektura + check order");
+  const { stylist, absences, bookings } = input;
+  const { services, serviceLengths, now, override } = query;
+  const minLeadTimeMinutes =
+    query.minLeadTimeMinutes ?? DEFAULT_MIN_LEAD_TIME_MINUTES;
+
+  // 1. not_qualified — stylist must perform every requested service.
+  const stylistSkills = new Set(stylist.serviceIds);
+  for (const s of services) {
+    if (!stylistSkills.has(s.id)) {
+      return { valid: false, reason: "not_qualified" };
+    }
+  }
+
+  // 2. in_past
+  if (start.getTime() < now.getTime()) {
+    return { valid: false, reason: "in_past" };
+  }
+
+  // 3. too_soon
+  if (start.getTime() < now.getTime() + minLeadTimeMinutes * 60_000) {
+    return { valid: false, reason: "too_soon" };
+  }
+
+  // Slot end is needed by checks 5 / 6 / 7. Computed once.
+  const duration = computeTotalDuration(services, serviceLengths);
+  const end = new Date(start.getTime() + duration * 60_000);
+
+  // Wall-clock parts of the slot's day for override + weeklyHours lookup.
+  const { ymd, weekday } = instantToWallParts(start, SALON_TZ);
+
+  // 4. salon_closed — explicit override.open === false for this date.
+  const dayOverride = override?.find((o) => o.date === ymd);
+  if (dayOverride?.open === false) {
+    return { valid: false, reason: "salon_closed" };
+  }
+
+  // 5. outside_working_hours — intersection(weeklyHours[weekday], override.hours?).
+  // `override.open=true` WITHOUT `hours` means "open with the stylist's
+  // normal hours" — no special outer bracket — so we treat it as
+  // unconstrained. D-018 D2 documents the intersection but leaves this
+  // sub-case implicit; resolved here as "no narrowing" (the open-flag alone
+  // never EXPANDS the stylist's day, but absence of `hours` doesn't shrink
+  // it either).
+  const stylistHours = stylist.weeklyHours[weekday];
+  if (stylistHours === null) {
+    return { valid: false, reason: "outside_working_hours" };
+  }
+  const effectiveStart = dayOverride?.hours
+    ? maxHHMM(stylistHours.start, dayOverride.hours.start)
+    : stylistHours.start;
+  const effectiveEnd = dayOverride?.hours
+    ? minHHMM(stylistHours.end, dayOverride.hours.end)
+    : stylistHours.end;
+  if (effectiveStart >= effectiveEnd) {
+    // Degenerate intersection (e.g. stylist 8-12, override 14-18) → closed.
+    return { valid: false, reason: "outside_working_hours" };
+  }
+  const windowStart = wallToInstant(ymd, effectiveStart, SALON_TZ);
+  const windowEnd = wallToInstant(ymd, effectiveEnd, SALON_TZ);
+  // Slot must fit entirely in [windowStart, windowEnd]: start inside, end
+  // no later than the closing instant (half-open behavior consistent with
+  // overlaps() — a slot ending exactly at closing is the last valid slot).
+  if (
+    start.getTime() < windowStart.getTime() ||
+    end.getTime() > windowEnd.getTime()
+  ) {
+    return { valid: false, reason: "outside_working_hours" };
+  }
+
+  // 6. absence — any Absence interval overlapping the slot.
+  for (const a of absences) {
+    if (overlaps(start, end, a.startAt, a.endAt)) {
+      return { valid: false, reason: "absence" };
+    }
+  }
+
+  // 7. booking_conflict — any OCCUPYING existing booking overlapping the slot.
+  // Defensive: caller pre-filters status (D-018 Caller contract), but we
+  // re-check internally — a stray cancelled/completed/no_show slipping
+  // through caller-side filtering shouldn't trigger a false conflict.
+  for (const b of bookings) {
+    if (!OCCUPYING_STATUSES.has(b.status)) continue;
+    if (overlaps(start, end, b.startAt, b.endAt)) {
+      return { valid: false, reason: "booking_conflict" };
+    }
+  }
+
+  return { valid: true };
 }
 
 /**
@@ -315,8 +610,95 @@ export function generateSlotsForStylist(
   input: StylistAvailabilityInput,
   query: SlotQuery,
 ): Slot[] {
-  void input; void query;
-  throw new Error("TODO(day-3 bodies): iterate calendar days + grid; call checkSlot");
+  const { stylist } = input;
+  const { services, serviceLengths, from, to } = query;
+  const granularityMin = query.granularityMin ?? DEFAULT_GRANULARITY_MIN;
+
+  // Soft-fail guards consistent with @returns docs (empty if from >= to;
+  // services [] is documented as undefined behavior — soft-fail [] keeps
+  // the generator pure-non-throwing, strict validation lives at the API
+  // boundary in `createBooking.schema.ts`).
+  if (services.length === 0) return [];
+  if (from >= to) return [];
+
+  // Quick reject: if the stylist isn't qualified for ALL services, no slot
+  // will ever pass `checkSlot`'s check #1 (`not_qualified`). Pre-computing
+  // once here saves O(days × slots) `checkSlot` invocations — meaningful in
+  // anyone-mode fan-out where the caller passes every stylist and we'd
+  // otherwise iterate them all uselessly. Drobná duplikace s checkSlot,
+  // worth it for the savings (D-018 D3 anyone-mode rationale).
+  const stylistSkills = new Set(stylist.serviceIds);
+  for (const s of services) {
+    if (!stylistSkills.has(s.id)) return [];
+  }
+
+  const duration = computeTotalDuration(services, serviceLengths);
+  const durationMs = duration * 60_000;
+  const granularityMs = granularityMin * 60_000;
+  const fromMs = from.getTime();
+  const toMs = to.getTime();
+
+  const result: Slot[] = [];
+
+  for (const ymd of iterateDays(from, to, SALON_TZ)) {
+    // --- Day-level pre-compute (cheap reject before iterating grid) ---
+    // Same intersection logic as checkSlot's check #5; here as a day-wide
+    // shortcut so we skip the grid entirely when the day is closed / stylist
+    // off / windows don't intersect. Per-slot validation still runs through
+    // checkSlot below (single source of slot-validity truth, D-018
+    // architektura — pragmatic hybrid).
+
+    const dayOverride = query.override?.find((o) => o.date === ymd);
+    if (dayOverride?.open === false) continue; // salon_closed whole day
+
+    // Weekday from the date itself (TZ-independent calendar property; same
+    // technique as `instantToWallParts`).
+    const [Y, M, D] = ymd.split("-").map(Number) as [number, number, number];
+    const weekday = UTC_DAY_TO_WEEKDAY[
+      new Date(Date.UTC(Y, M - 1, D)).getUTCDay()
+    ] as keyof WeeklyHours;
+
+    const stylistHours = stylist.weeklyHours[weekday];
+    if (stylistHours === null) continue; // stylist off this weekday
+
+    const effectiveStart = dayOverride?.hours
+      ? maxHHMM(stylistHours.start, dayOverride.hours.start)
+      : stylistHours.start;
+    const effectiveEnd = dayOverride?.hours
+      ? minHHMM(stylistHours.end, dayOverride.hours.end)
+      : stylistHours.end;
+    if (effectiveStart >= effectiveEnd) continue; // degenerate intersection
+
+    const windowStartMs = wallToInstant(ymd, effectiveStart, SALON_TZ).getTime();
+    const windowEndMs = wallToInstant(ymd, effectiveEnd, SALON_TZ).getTime();
+
+    // --- Grid iteration: start at window opening, step by granularity ---
+    // Loop condition: candidate slot must fit in the working window
+    // (candidate + duration <= windowEnd) AND start before query `to`.
+    // Inside-loop guards trim the slot's intersection with the query
+    // window [from, to) — necessary because iterateDays may include days
+    // that partially fall outside [from, to).
+    for (
+      let candidateMs = windowStartMs;
+      candidateMs + durationMs <= windowEndMs && candidateMs < toMs;
+      candidateMs += granularityMs
+    ) {
+      if (candidateMs < fromMs) continue;          // slot start before from
+      if (candidateMs + durationMs > toMs) break;  // slot end past to; later candidates same
+
+      const start = new Date(candidateMs);
+      const check = checkSlot(start, input, query);
+      if (check.valid) {
+        result.push({
+          stylistId: stylist.id,
+          start,
+          end: new Date(candidateMs + durationMs),
+        });
+      }
+    }
+  }
+
+  return result;
 }
 
 /**
@@ -346,14 +728,30 @@ export function generateAvailableSlots(
   inputs: StylistAvailabilityInput[],
   query: SlotQuery,
 ): Slot[] {
-  void inputs; void query;
-  throw new Error("TODO(day-3 bodies): map generateSlotsForStylist + flatten + sort (start, stylistId)");
+  // Explicit empty case per @returns docs (also a no-op below; readability
+  // rather than correctness guard).
+  if (inputs.length === 0) return [];
+
+  // Fan-out per stylist + flatten.
+  const all: Slot[] = [];
+  for (const input of inputs) {
+    const slots = generateSlotsForStylist(input, query);
+    for (const slot of slots) all.push(slot);
+  }
+
+  // Sort: chronological primary, stylistId secondary (D-018 D3 + signatures-
+  // phase calibration). Stable secondary key enables both `groupBy(start)`
+  // ("v 10:00 volní: Marie, Jana") and `groupBy(stylistId)` (per-stylist
+  // columns) UI views without re-sorting client-side. JS `Array.sort` is
+  // stable since ES2019 (modern Node 22 + browsers).
+  all.sort((a, b) => {
+    const dt = a.start.getTime() - b.start.getTime();
+    return dt !== 0 ? dt : a.stylistId.localeCompare(b.stylistId);
+  });
+
+  return all;
 }
 
-// TODO(day-3 bodies): Intl-based TZ helpers `wallToInstant(ymd, hhmm, tz)`
-// and `instantToWallParts(instant, tz)` per D-018 D6 (formatToParts +
-// Date.UTC, zero-dep). Plus a day-iterator over calendar YYYY-MM-DD.
-//
 // TODO(day-5): unit tests — overlap edge cases (back-to-back, identical,
 // contained) AND the D-018 D6 TZ regression anchor (4 dates × 2 patterns
 // + 3 day-lengths from the _tz_probe; pre-staged in D-018 D6).
