@@ -1,11 +1,24 @@
 import type { ServiceLengthMap } from "@hsb/shared";
 
-export type BookingStep = "services" | "slot" | "customer" | "confirm";
+export type BookingStep =
+  | "services"
+  | "slot"
+  | "customer"
+  | "confirm"
+  | "success";
 
 export type SelectedSlot = {
   stylistId: string;
   start: Date;
   end: Date;
+};
+
+export type BookingResult = {
+  bookingId: string;
+  status: "confirmed";
+  startAt: string; // ISO from server
+  endAt: string;
+  totalPrice: number;
 };
 
 export type BookingState = {
@@ -15,6 +28,7 @@ export type BookingState = {
   selectedStylistId: string | null; // null = "kdokoliv" anyone-mode (D-018 D3)
   selectedSlot: SelectedSlot | null;
   customer: { name: string; phone: string; email: string } | null;
+  result: BookingResult | null; // populated on SUBMIT_SUCCESS
 };
 
 export type BookingAction =
@@ -23,6 +37,7 @@ export type BookingAction =
   | { type: "SELECT_STYLIST"; stylistId: string | null }
   | { type: "SELECT_SLOT"; slot: SelectedSlot }
   | { type: "SET_CUSTOMER"; customer: { name: string; phone: string; email: string } }
+  | { type: "SUBMIT_SUCCESS"; result: BookingResult }
   | { type: "NEXT_STEP" }
   | { type: "PREV_STEP" };
 
@@ -33,8 +48,11 @@ export const initialBookingState: BookingState = {
   selectedStylistId: null,
   selectedSlot: null,
   customer: null,
+  result: null,
 };
 
+// `success` intentionally omitted — it's terminal, reached via SUBMIT_SUCCESS,
+// not NEXT_STEP. Linear nav stops at `confirm`.
 const stepOrder: BookingStep[] = ["services", "slot", "customer", "confirm"];
 
 export function bookingReducer(s: BookingState, a: BookingAction): BookingState {
@@ -66,6 +84,8 @@ export function bookingReducer(s: BookingState, a: BookingAction): BookingState 
       return { ...s, selectedSlot: a.slot };
     case "SET_CUSTOMER":
       return { ...s, customer: a.customer };
+    case "SUBMIT_SUCCESS":
+      return { ...s, step: "success", result: a.result };
     case "NEXT_STEP": {
       const i = stepOrder.indexOf(s.step);
       return { ...s, step: stepOrder[i + 1] ?? s.step };

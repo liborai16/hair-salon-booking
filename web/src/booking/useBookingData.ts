@@ -24,6 +24,7 @@ import {
   query,
   where,
 } from "firebase/firestore";
+import { httpsCallable } from "firebase/functions";
 import { convertTimestampsToDate } from "@hsb/shared";
 import type {
   Absence,
@@ -32,10 +33,28 @@ import type {
   BusinessHoursOverride,
   SalonSettings,
   Service,
+  ServiceLengthMap,
   Stylist,
   StylistAvailabilityInput,
 } from "@hsb/shared";
-import { db } from "../lib/firebase";
+import { db, functions } from "../lib/firebase";
+import type { BookingResult } from "./state";
+
+/** Input shape for createBooking callable — mirrors createBooking.schema.ts.
+ *  Server zod parses + rejects extras (strictObject). */
+export type CreateBookingInput = {
+  stylistId: string;
+  serviceIds: string[];
+  serviceLengths?: ServiceLengthMap;
+  startAt: string; // ISO with offset (z.iso.datetime({offset: true}))
+  customer: { name: string; phone: string; email: string };
+};
+
+/** Typed callable for the public booking create endpoint (D-018 integration). */
+export const createBookingCallable = httpsCallable<
+  CreateBookingInput,
+  BookingResult
+>(functions, "createBooking");
 
 const OCCUPYING_STATUSES = new Set<BookingStatus>(["pending", "confirmed"]);
 

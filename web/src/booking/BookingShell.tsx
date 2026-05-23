@@ -7,6 +7,9 @@ import {
 import { bookingReducer, initialBookingState } from "./state";
 import { ServiceStep } from "./steps/ServiceStep";
 import { SlotStep } from "./steps/SlotStep";
+import { CustomerStep } from "./steps/CustomerStep";
+import { ConfirmStep } from "./steps/ConfirmStep";
+import { SuccessStep } from "./steps/SuccessStep";
 
 /**
  * Booking flow orchestrator — useReducer-driven state machine over 4 steps:
@@ -75,23 +78,58 @@ export function BookingShell() {
       );
     }
     case "customer":
-    case "confirm":
       return (
-        <div>
-          <h1 className="text-2xl font-semibold mb-4">
-            {state.step === "customer" ? "3. Vaše údaje" : "4. Potvrzení"}
-          </h1>
-          <p className="text-stone-500">
-            Krok je v přípravě (Phase 2.2: customer form + booking submit).
-          </p>
-          <button
-            type="button"
-            onClick={() => dispatch({ type: "PREV_STEP" })}
-            className="mt-6 text-stone-600 hover:text-stone-900 px-4 py-2"
-          >
-            ← Zpět
-          </button>
-        </div>
+        <CustomerStep
+          initial={state.customer}
+          onSubmit={(customer) => {
+            dispatch({ type: "SET_CUSTOMER", customer });
+            dispatch({ type: "NEXT_STEP" });
+          }}
+          onPrev={() => dispatch({ type: "PREV_STEP" })}
+        />
       );
+    case "confirm": {
+      // Guard: confirm requires all upstream state. If user navigated here
+      // with a missing piece (e.g. stale state), kick back to services step.
+      const selectedServices = services.filter((s) =>
+        state.selectedServiceIds.includes(s.id),
+      );
+      const stylist =
+        state.selectedSlot &&
+        stylists.find((s) => s.id === state.selectedSlot!.stylistId);
+      if (
+        selectedServices.length === 0 ||
+        !state.selectedSlot ||
+        !stylist ||
+        !state.customer
+      ) {
+        return (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+            Rezervace má neúplná data. Začněte prosím od začátku.
+          </div>
+        );
+      }
+      return (
+        <ConfirmStep
+          services={selectedServices}
+          serviceLengths={state.serviceLengths}
+          stylist={stylist}
+          slot={state.selectedSlot}
+          customer={state.customer}
+          onPrev={() => dispatch({ type: "PREV_STEP" })}
+          onSuccess={(result) => dispatch({ type: "SUBMIT_SUCCESS", result })}
+        />
+      );
+    }
+    case "success": {
+      if (!state.result) {
+        return (
+          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+            Chybí výsledek rezervace.
+          </div>
+        );
+      }
+      return <SuccessStep result={state.result} />;
+    }
   }
 }
