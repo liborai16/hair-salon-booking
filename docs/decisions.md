@@ -604,4 +604,212 @@ uložený token s přijatým — nemá doc ID. Musí token **vyhledat**.
 
 ---
 
-*(D-018+ přibudou níže.)*
+## Day 3 — 2026-05-23
+
+### D-018 — Availability slot generator v `@hsb/shared` — pure, half-open intervaly + capability + absence/override + Intl TZ + minLeadTime
+
+*(Záznam zapsán paralelně s implementací per L-007; obsahuje 6 pod-rozhodnutí
+D1–D6 + minLeadTime, která dohromady tvoří jeden generátor a sdílí jednu
+sémantiku „je tenhle slot volný?".)*
+
+**Kontext:**
+Veřejný booking flow (UI, Day 3) musí klientovi ukázat volné termíny pro
+vybrané služby a stylistu (nebo „anyone"). Současně server (`createBooking`,
+Cloud Function) musí pro konkrétní žádost validovat, že navrhovaný slot je
+legitimní — uvnitř pracovní doby stylisty, mimo absenci, mimo zavřený den,
+nekoliduje s existující rezervací. **Stejná sémantika „je tenhle slot volný?"
+musí platit na obou stranách** — jinak klient uvidí slot, který server odmítne.
+
+Třetí konzument: `createBooking` má `TODO(day-3)` (`createBooking.ts`
+ř. 199-206) přesně na tohle — re-check overlapu v transakci je race-safe,
+ale neřeší working-hours / absence / override. Slot generátor tu díru zaceluje
+sdílenou pure funkcí, kterou volá klient i server.
+
+**Empirické fakty, na kterých řešení stojí (ověřeno z `types.ts` / `pricing.ts`
+v pre-readu — repo je autorita, paměť ne):**
+
+1. `TimeRange` = wall-clock string `"HH:MM"` v Europe/Prague, ale `Booking` /
+   `Absence` jsou `Date` instanty (UTC) → nutná TZ konverze, **DST-aware**.
+2. `Absence` je half-open `[startAt, endAt)` — **přesně sémantika `overlaps()`**
+   (D-016) → reuse beze změny, jeden zdroj.
+3. `BusinessHoursOverride` je **salon-level** s komentářem „consults overrides
+   BEFORE per-stylist weeklyHours" → definuje precedenci (řeší D2).
+4. `pricing.ts` už exportuje `SLOT_GRANULARITY_MIN = 15` a
+   `computeTotalDuration(services, lengths)` → reuse, ne redefinice.
+5. `Stylist.serviceIds: string[]` = per-service-ID capability, který
+   `createBooking` už používá → reuse (řeší D4 by empirie).
+
+---
+
+#### Architektura — two-layer API se sdíleným jádrem
+
+```
+checkSlot(start, StylistAvailabilityInput, SlotQuery): SlotCheck
+  ── JÁDRO. Validuje JEDEN (start, duration) v pořadí:
+     qualification → in_past → too_soon → salon_closed →
+     outside_working_hours → absence → booking_conflict.
+     Vrací typovaný SlotRejectionReason.
+  ── Volá createBooking server-side (nahrazuje TODO(day-3)).
+
+generateSlotsForStylist(input, query): Slot[]
+  ── Iteruje 15-min grid přes [from, to), pro každý candidate volá checkSlot.
+     Single stylista.
+
+generateAvailableSlots(inputs[], query): Slot[]
+  ── Anyone-mode fan-out: mapuje generateSlotsForStylist přes všechny
+     stylisty, flatten. Každý Slot nese stylistId.
+```
+
+`Slot = { stylistId, start, end }`. Vstupy jsou již-deserializovaná doménová
+data (`Date`, D-013). **Pure, žádné I/O, `now` injected.** Žádný zod uvnitř
+(interní doménová vrstva — zod patří na I/O hranici, ne mezi důvěryhodné
+vrstvy).
+
+**Dělba odpovědnosti server ↔ klient:**
+- Klient (UI): bulk generation pro horizont (~4 týdny) → renderování.
+- Server (`createBooking`): `checkSlot` pro one-shot validaci **před** transakcí
+  (statická data: working hours, absence, override). **Overlap re-check zůstává
+  ve Firestore transakci** s txn-read bookings — race-safe; tam se `overlaps()`
+  z D-016 volá přímo, ne přes `checkSlot`. Tj. `checkSlot` před transakcí chytne
+  „mimo pracovní dobu / absence / zavřený den" levně; transakce chytne „právě
+  obsazeno". **Jeden zdroj sémantiky (`overlaps()`), dvě místa volání** podle
+  race-citlivosti dat.
+
+---
+
+#### Pod-rozhodnutí
+
+**D1 — Slot granularita = fixed 15-min grid.**
+Start times alignované na :00 / :15 / :30 / :45 přes `SLOT_GRANULARITY_MIN`
+importovaný z `pricing.ts` (jeden zdroj pravdy, ne redefinice). **Délka slotu**
+(`computeTotalDuration`) může být off-grid (např. 25-min express barva — viz
+`pricing.ts` ř. 106-111). `granularityMin` zůstává optional param pro budoucí
+flexibilitu. Zamítnuto: service-driven start (skákavé UI), per-salon
+configurable (YAGNI pro MVP).
+
+**D2 — Business override × weeklyHours = intersection.**
+`override.open=false` → `salon_closed`, žádné sloty. `override.open=true,
+hours` → effective window = `intersection(weeklyHours[weekday], override.hours)`.
+Sedí na komentář v `types.ts` „consults overrides BEFORE per-stylist
+weeklyHours" — override je **vnější salon-level závorka**, uvnitř které platí
+per-stylist vzorec. Zamítnuto: replace (ztrácí per-stylist diferenci — junior
+chodí odpoledne i ve „speciální" den), open-flag-only (zahazuje pole `hours`
+z modelu).
+
+**D3 — Anyone-mode = fan-out + flatten, slot nese `stylistId`.**
+Pro každého kvalifikovaného stylistu nezávisle generovat; výsledek flatten do
+jednoho seznamu, kde každý slot ví, **kdo** je v něm volný. Grupování stejných
+časů („v 10:00 volní: Marie, Jana") je **UI** odpovědnost, ne generátoru —
+generátor vrací fakta, UI je prezentuje. Zamítnuto: round-robin / load-balanced
+(PDF chce „přijal bych i kolegyni" = nabídnout, ne rozhodnout za klienta),
+merge intervalů bez `stylistId` (UI by neměla koho rezervovat — `createBooking`
+vyžaduje konkrétní `stylistId`).
+
+**D4 — Capability = `Stylist.serviceIds` (per-service-ID), reuse.**
+**Resolved by empirie, ne otevřený decision.** `types.ts` ř. 155 už nese pole
+service IDs, které stylista provádí; `createBooking` ř. 156–165 to kontroluje.
+„Junior ≠ složité barvení" = junior nemá `balayage` service-ID v `serviceIds`.
+**Žádná nová struktura, žádná capability matrix collection** — model už existuje.
+
+**D5 — Horizont = caller-provided `[from, to)`.**
+Generátor nehardcoduje rozsah. UI passuje ~4 týdny (mistrová má klientelu „co
+počká i měsíc" — PDF), server passuje 1 slot (`from=start`,
+`to=start+granularity`). Tím **jeden generátor obsluhuje oba use-cases** bez
+větvení. Zamítnuto: hardcoded N týdnů (křehké, UI/server mají různé potřeby).
+
+**D6 — Timezone konverze = `Intl.DateTimeFormat.formatToParts` + `Date.UTC`
+(zero-dep).**
+Nejhlubší rozhodnutí. `TimeRange` je wall-clock Europe/Prague, `Date` v doméně
+je UTC instant → musí převádět. Zvažovány tři přístupy:
+
+1. **`toLocaleString('en-US')` round-trip** — funguje, ale závisí na
+   `new Date(string)` parsingu non-ISO en-US locale stringu, což je v ECMAScript
+   specifikaci **host-specific** (V8 zvládá, jiný engine nemusí stejně). Plus
+   ztrácí ms, plus `hourCycle` midnight kolísá mezi „24:00" / „12:00 AM".
+2. **`luxon` / `date-fns-tz`** — ergonomické, ale první runtime dependency
+   v `shared` (porušuje D-012/D-013 čistotu).
+3. **`Intl.DateTimeFormat.formatToParts` + `Date.UTC`** (zvolené) — staví
+   instant z numerických komponent, žádné string re-parsing, deterministické
+   napříč enginy, explicit `hourCycle:'h23'`.
+
+**Empirický důkaz** (ad-hoc probe `_tz_probe.mjs`, smazán po verifikaci;
+→ Day 5 regression anchor):
+
+```
+wall-clock 10:00 Europe/Prague → UTC instant
+  (A = toLocaleString, B = formatToParts):
+  2026-01-15  A=09:00Z  B=09:00Z   winter CET  (UTC+1)         ✓
+  2026-07-15  A=08:00Z  B=08:00Z   summer CEST (UTC+2)         ✓
+  2026-03-29  A=08:00Z  B=08:00Z   spring-forward (DST hrana)  ✓
+  2026-10-25  A=09:00Z  B=09:00Z   fall-back     (DST hrana)   ✓
+
+day length přes wall-clock 00:00 boundaries (B):
+  03-29 → 03-30 = 23h  (spring-forward)
+  10-25 → 10-26 = 25h  (fall-back)
+  07-15 → 07-16 = 24h  (normal)
+```
+
+**A i B dávají identické správné instanty** pro salon hodiny (8-18, mimo
+noční DST přechod). B zvolen **z principu, ne kvůli výsledku** — robustnější
+základ (žádné host-spec string parsing) při zero-dep stance. Tyto případy
+půjdou do Day 5 unit testů jako regresní kotva.
+
+**Day iteration:** kalendářní `YYYY-MM-DD` stringy (UTC date arithmetic
+increment — UTC nemá DST, takže `+1 den` je vždy bezpečný), per-day
+`weeklyHours[weekday]` přes `wallToInstant`. Tím **„kolik hodin má den"
+nevzniká jako otázka** — neiteruje se přes 24h skoky.
+
+**minLeadTime = 120 min default, tunable přes `SlotQuery`.**
+`checkSlot` přidává reason `too_soon`, který filtruje sloty se
+`start < now + minLeadTime`. Default 120 min je **oborový standard** pro
+day-of online booking u kadeřnictví (Booksy/Reservio default ~2h) — stylistka
+dokončí rozdělanou práci, recepční stihne zaregistrovat, klient stihne dojet.
+PDF kontext: vytížený salon, mistrová má frontu — „za 5 minut volno" je
+nereálné. Tunable: UI/seed/demo může passovat nižší hodnotu. **Dokumentováno
+jako README §6 assumption.**
+
+---
+
+**Trade-offs:**
+
+- **+** Single source of truth pro slot sémantiku napříč třemi konzumenty
+  (UI / `createBooking` / Day 5 testy). Žádný drift.
+- **+** Pure + Intl zero-dep drží `shared` balíček bez runtime deps
+  (konzistentní s D-012/D-013).
+- **+** `checkSlot` typovaný `SlotRejectionReason` umožňuje serveru hlásit UI
+  konkrétní důvod (lepší UX než generic „nelze rezervovat").
+- **−** TZ konverze přidává netriviální helpery (~50 ř.) jen pro Europe/Prague —
+  abstrakce vs. konkrétní použití. TZ je ale byznys-fakt salonu, ne
+  over-engineering.
+- **−** Day iteration přes YMD stringy je textovější než instant arithmetic;
+  vyvažuje se eliminací DST nejasností.
+
+**Cross-references — compounding decisions:**
+
+- **D-012 / D-013** — `shared` jako SDK-agnostický core; D-018 to dodržuje
+  (žádný `firebase-*` ani `luxon` import).
+- **D-014** — `pricing.ts` poskytuje `computeTotalDuration` a
+  `SLOT_GRANULARITY_MIN`; D-018 importuje, nestaví znovu.
+- **D-016** — `overlaps()` je jádro absence/booking konfliktu; D-018 ho reuse
+  bez změny (Absence i Booking jsou half-open už dnes).
+- `createBooking.ts` ř. 199-206 (`TODO(day-3)`) — server consumer, který se
+  přepojí na `checkSlot`.
+
+**Known limitations / Future work** (→ README §6 / §8):
+
+- **Lunch break / split shifts** — `WeeklyHours` má jeden `TimeRange`/den,
+  žádný split. Pauza by se modelovala jen jako denní `Absence`. Reálný salon
+  by potřeboval `TimeRange[]`.
+- **Buffer mezi rezervacemi** — D-016 future work; `overlaps()` je teď
+  zero-gap. Buffer = budoucí param `checkSlot`, ne změna `overlaps()`.
+- **DST přechodové hodiny 2:00-3:00** — inherentně nedefinovaný wall-clock
+  (spring-gap / fall-overlap). Salon (8-18) tam nesahá.
+- **Multi-stylist booking** — model říká `Booking.stylistId: string` (jeden);
+  kombinované služby (PDF: „barva + střih + foukaná") jsou u JEDNOHO stylisty.
+  Souběžná práce dvou stylistů na jednom klientovi je out-of-scope.
+- **Per-service medium/long délky** (D-014 future work).
+- **Configurable granularita per salon** (D1) — konstanta zatím stačí.
+
+---
+
+*(D-019+ přibudou níže.)*
