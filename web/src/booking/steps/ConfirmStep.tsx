@@ -60,9 +60,6 @@ export function ConfirmStep({
       });
       onSuccess(response.data);
     } catch (e) {
-      // Firebase httpsCallable error shape — message is localized by
-      // server (D-018 E2 dynamic), details.reason gives typed reason for
-      // future client-side switching. For MVP just display the message.
       const err = e as { message?: string };
       setError(err.message ?? "Neznámá chyba.");
     } finally {
@@ -72,67 +69,63 @@ export function ConfirmStep({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">4. Potvrzení</h1>
+      <h1 className="text-3xl md:text-4xl mb-2">Potvrzení</h1>
+      <p className="text-muted mb-8">
+        Zkontrolujte detaily a potvrďte rezervaci.
+      </p>
 
-      <div className="bg-stone-100 rounded-md p-4 space-y-3 max-w-md">
-        <div>
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Termín
+      <div className="bg-bg-soft border border-hairline rounded-lg p-6 space-y-5 max-w-md">
+        <Row label="Termín">
+          <div className="font-display text-xl font-medium">
+            {formatDayHeading(startParts.ymd)}
           </div>
-          <div className="font-medium">
-            {formatDayHeading(startParts.ymd)} · {startParts.hhmm}–
-            {endParts.hhmm}
+          <div className="text-fg">
+            {startParts.hhmm}–{endParts.hhmm}
           </div>
-        </div>
-        <div>
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Kadeřník
-          </div>
-          <div className="font-medium">{stylist.name}</div>
-        </div>
-        <div>
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Služby
-          </div>
-          <ul className="font-medium">
+        </Row>
+        <Row label="Kadeřník">{stylist.name}</Row>
+        <Row label="Služby">
+          <ul className="space-y-1">
             {services.map((s) => (
               <li key={s.id}>
-                · {s.name}
-                {serviceLengths[s.id] ? ` (${serviceLengths[s.id]})` : ""}
+                {s.name}
+                {serviceLengths[s.id] && (
+                  <span className="text-muted">
+                    {" · "}
+                    {serviceLengths[s.id]}
+                  </span>
+                )}
               </li>
             ))}
           </ul>
+        </Row>
+        <div className="border-t border-hairline pt-4">
+          <div className="label-mono mb-1">Celkem</div>
+          <div className="font-display text-3xl font-medium tracking-tight">
+            {finalPrice} Kč
+          </div>
+          <div className="text-sm text-muted mt-0.5">{duration} min</div>
         </div>
-        <div className="border-t border-stone-300 pt-2">
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Celkem
+        <Row label="Vy">
+          {customer.name}
+          <div className="text-sm text-muted mt-0.5">
+            {customer.phone} · {customer.email}
           </div>
-          <div className="font-medium">
-            {duration} min · {finalPrice} Kč
-          </div>
-        </div>
-        <div>
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Vy
-          </div>
-          <div className="font-medium">
-            {customer.name} · {customer.phone} · {customer.email}
-          </div>
-        </div>
+        </Row>
       </div>
 
       {error && (
-        <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3 max-w-md">
+        <div className="mt-4 text-sm text-danger bg-danger-soft border border-danger/20 rounded-md p-3 max-w-md">
           {error}
         </div>
       )}
 
-      <div className="mt-6 border-t border-stone-200 pt-6 flex items-center justify-between max-w-md">
+      <div className="mt-8 border-t border-hairline pt-6 flex items-center justify-between max-w-md">
         <button
           type="button"
           onClick={onPrev}
           disabled={submitting}
-          className="text-stone-600 hover:text-stone-900 px-4 py-2 disabled:opacity-40"
+          className="btn-ghost"
         >
           ← Zpět
         </button>
@@ -140,11 +133,26 @@ export function ConfirmStep({
           type="button"
           onClick={submit}
           disabled={submitting}
-          className="bg-stone-900 text-white px-6 py-2 rounded-md hover:bg-stone-800 transition disabled:opacity-40"
+          className="btn-primary btn-primary-hover"
         >
           {submitting ? "Rezervuji…" : "Rezervovat"}
         </button>
       </div>
+    </div>
+  );
+}
+
+function Row({
+  label,
+  children,
+}: {
+  label: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div>
+      <div className="label-mono mb-1">{label}</div>
+      <div className="font-medium text-fg">{children}</div>
     </div>
   );
 }

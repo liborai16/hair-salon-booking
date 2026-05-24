@@ -52,10 +52,6 @@ export function CancelPage() {
   const [error, setError] = useState<string | null>(null);
   const [cancelling, setCancelling] = useState(false);
 
-  // Load on mount — server validates token via indexed equality lookup
-  // (D-017 query-by-token, bearer capability). Token entropy (256 bits)
-  // is the actual protection; rules don't gate this collection because
-  // it's CF-only access via admin SDK.
   useEffect(() => {
     if (!token) {
       setError("Chybí token rezervace v URL.");
@@ -86,8 +82,6 @@ export function CancelPage() {
     setCancelling(true);
     setError(null);
     try {
-      // manageBookingByToken('cancel') is idempotent — re-call on
-      // already-cancelled booking returns same status, no error.
       const result = await manageBookingByToken({ token, action: "cancel" });
       setView(result.data);
     } catch (e) {
@@ -98,27 +92,50 @@ export function CancelPage() {
     }
   }
 
-  if (loading) {
-    return <div className="text-stone-500">Načítám rezervaci…</div>;
-  }
-
-  if (!view) {
-    return (
-      <div>
-        <h1 className="text-2xl font-semibold mb-4">Zrušení rezervace</h1>
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3 max-w-md">
-          {error ?? "Rezervace nenalezena."}
+  return (
+    <div className="container mx-auto max-w-2xl px-4 py-10 md:py-14">
+      {loading && (
+        <div className="space-y-4 animate-pulse">
+          <div className="h-9 w-1/2 rounded-md bg-bg-soft" />
+          <div className="h-48 rounded-lg bg-bg-soft" />
         </div>
-        <Link
-          to="/"
-          className="mt-6 inline-block text-stone-600 hover:text-stone-900 px-2 py-2"
-        >
-          ← Zpět na úvod
-        </Link>
-      </div>
-    );
-  }
+      )}
 
+      {!loading && !view && (
+        <div>
+          <h1 className="text-3xl md:text-4xl mb-3">Zrušení rezervace</h1>
+          <div className="text-sm text-danger bg-danger-soft border border-danger/20 rounded-md p-3 max-w-md">
+            {error ?? "Rezervace nenalezena."}
+          </div>
+          <Link to="/" className="btn-ghost mt-6 inline-flex">
+            ← Zpět na úvod
+          </Link>
+        </div>
+      )}
+
+      {!loading && view && (
+        <CancelView
+          view={view}
+          error={error}
+          cancelling={cancelling}
+          onCancel={handleCancel}
+        />
+      )}
+    </div>
+  );
+}
+
+function CancelView({
+  view,
+  error,
+  cancelling,
+  onCancel,
+}: {
+  view: BookingView;
+  error: string | null;
+  cancelling: boolean;
+  onCancel: () => void;
+}) {
   const start = new Date(view.startAt);
   const end = new Date(view.endAt);
   const startParts = instantToWallParts(start, SALON_TZ);
@@ -128,88 +145,94 @@ export function CancelPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">
+      <h1 className="text-3xl md:text-4xl mb-2">
         {isCancelled ? "Rezervace zrušena" : "Vaše rezervace"}
       </h1>
+      <p className="text-muted mb-8">
+        {isCancelled
+          ? "Tato rezervace už není aktivní."
+          : "Detail rezervace + možnost samostatného zrušení."}
+      </p>
 
-      <div className="bg-stone-100 rounded-md p-4 space-y-3 max-w-md">
+      <div className="bg-bg-soft border border-hairline rounded-lg p-6 space-y-5 max-w-md">
         <div>
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Termín
+          <div className="label-mono mb-1">Termín</div>
+          <div className="font-display text-xl font-medium">
+            {formatDayHeading(startParts.ymd)}
           </div>
-          <div className="font-medium">
-            {formatDayHeading(startParts.ymd)} · {startParts.hhmm}–
-            {endParts.hhmm}
+          <div className="text-fg">
+            {startParts.hhmm}–{endParts.hhmm}
           </div>
         </div>
         <div>
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Kadeřník
-          </div>
-          <div className="font-medium">{view.stylistName}</div>
+          <div className="label-mono mb-1">Kadeřník</div>
+          <div className="font-medium text-fg">{view.stylistName}</div>
         </div>
         <div>
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Služby
-          </div>
-          <ul className="font-medium">
+          <div className="label-mono mb-1">Služby</div>
+          <ul className="font-medium text-fg space-y-1">
             {view.services.map((name, i) => (
-              <li key={i}>· {name}</li>
+              <li key={i}>{name}</li>
             ))}
           </ul>
         </div>
-        <div className="border-t border-stone-300 pt-2">
-          <div className="text-xs text-stone-500 uppercase tracking-wide">
-            Celkem · Stav
+        <div className="border-t border-hairline pt-4">
+          <div className="label-mono mb-1">Celkem · Stav</div>
+          <div className="font-display text-2xl font-medium">
+            {view.totalPrice} Kč
           </div>
-          <div className="font-medium">
-            {view.totalPrice} Kč ·{" "}
-            <span className={isCancelled ? "text-stone-500" : ""}>
-              {STATUS_LABELS[view.status]}
-            </span>
+          <div
+            className={`text-sm mt-1 ${
+              isCancelled ? "text-muted" : "text-fg"
+            }`}
+          >
+            {STATUS_LABELS[view.status]}
           </div>
         </div>
       </div>
 
       {error && (
-        <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3 max-w-md">
+        <div className="mt-4 text-sm text-danger bg-danger-soft border border-danger/20 rounded-md p-3 max-w-md">
           {error}
         </div>
       )}
 
-      <div className="mt-6 max-w-md space-y-4">
+      <div className="mt-8 max-w-md space-y-4">
         {canCancel ? (
           <button
             type="button"
-            onClick={handleCancel}
+            onClick={onCancel}
             disabled={cancelling}
-            className="bg-red-700 text-white px-6 py-2 rounded-md hover:bg-red-800 transition disabled:opacity-40"
+            className="inline-flex items-center justify-center bg-danger text-surface-fg px-6 py-2.5 rounded-md hover:opacity-90 transition disabled:opacity-40 min-h-[44px] font-medium"
           >
             {cancelling ? "Ruším…" : "Zrušit rezervaci"}
           </button>
         ) : isCancelled ? (
-          <div className="text-sm text-stone-600">
+          <div className="text-sm text-muted">
             Rezervace byla zrušena. Pokud potřebujete novou,{" "}
-            <Link to="/book" className="text-stone-900 underline">
+            <Link
+              to="/book"
+              className="text-fg underline underline-offset-2 hover:text-accent-strong"
+            >
               rezervujte si jiný termín
             </Link>
             .
           </div>
         ) : (
-          <div className="text-sm text-stone-600">
+          <div className="text-sm text-muted">
             Tato rezervace už nemůže být zrušena (
             {STATUS_LABELS[view.status]}). Pro nový termín{" "}
-            <Link to="/book" className="text-stone-900 underline">
+            <Link
+              to="/book"
+              className="text-fg underline underline-offset-2 hover:text-accent-strong"
+            >
               začněte zde
             </Link>
             .
           </div>
         )}
         <div>
-          <Link
-            to="/"
-            className="inline-block text-stone-600 hover:text-stone-900"
-          >
+          <Link to="/" className="btn-ghost inline-flex">
             ← Zpět na úvod
           </Link>
         </div>

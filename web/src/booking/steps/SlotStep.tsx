@@ -111,50 +111,39 @@ export function SlotStep({
 
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-6">
-        2. Vyberte kadeřníka a termín
-      </h1>
+      <h1 className="text-3xl md:text-4xl mb-2">Kadeřník a termín</h1>
+      <p className="text-muted mb-8">
+        Vyberte kadeřníka nebo nechte „kdokoliv" pro nejvíce volných termínů.
+      </p>
 
-      <div className="mb-6">
-        <div className="text-sm text-stone-500 mb-2">Kadeřník</div>
+      <div className="mb-8">
+        <div className="label-mono mb-3">Kadeřník</div>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
+          <StylistChip
+            label="Kdokoliv"
+            selected={selectedStylistId === null}
             onClick={() => onSelectStylist(null)}
-            className={`px-4 py-2 rounded-md border ${
-              selectedStylistId === null
-                ? "border-stone-900 bg-stone-900 text-white"
-                : "border-stone-300 hover:border-stone-500"
-            }`}
-          >
-            Kdokoliv
-          </button>
+          />
           {qualified.map((st) => (
-            <button
+            <StylistChip
               key={st.id}
-              type="button"
+              label={st.name}
+              selected={selectedStylistId === st.id}
               onClick={() => onSelectStylist(st.id)}
-              className={`px-4 py-2 rounded-md border ${
-                selectedStylistId === st.id
-                  ? "border-stone-900 bg-stone-900 text-white"
-                  : "border-stone-300 hover:border-stone-500"
-              }`}
-            >
-              {st.name}
-            </button>
+            />
           ))}
         </div>
         {qualified.length === 0 && (
-          <div className="mt-3 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
+          <div className="mt-3 text-sm text-warning bg-warning-soft border border-warning/20 rounded-md p-3">
             Žádný kadeřník neumí všechny vybrané služby. Vraťte se zpět a
             upravte výběr.
           </div>
         )}
       </div>
 
-      {loading && <div className="text-stone-500">Načítám volné termíny…</div>}
+      {loading && <SlotsLoadingSkeleton />}
       {error && (
-        <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+        <div className="text-sm text-danger bg-danger-soft border border-danger/20 rounded-md p-3">
           Chyba: {error}
         </div>
       )}
@@ -162,15 +151,11 @@ export function SlotStep({
       {slots !== null && !loading && (
         <div className="space-y-6">
           {byDay.size === 0 ? (
-            <div className="text-stone-500">
-              Žádné volné termíny v nejbližších 14 dnech.
-            </div>
+            <EmptySlots />
           ) : (
             Array.from(byDay.entries()).map(([ymd, daySlots]) => (
               <div key={ymd}>
-                <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wide mb-2">
-                  {formatDayHeading(ymd)}
-                </h2>
+                <h2 className="label-mono mb-3">{formatDayHeading(ymd)}</h2>
                 <div className="flex flex-wrap gap-2">
                   {daySlots.map((slot) => {
                     const hhmm = instantToWallParts(slot.start, SALON_TZ).hhmm;
@@ -185,15 +170,19 @@ export function SlotStep({
                         key={`${slot.stylistId}-${slot.start.getTime()}`}
                         type="button"
                         onClick={() => onSelectSlot(slot)}
-                        className={`text-sm px-3 py-2 rounded-md border ${
+                        className={
                           isSelected
-                            ? "border-stone-900 bg-stone-900 text-white"
-                            : "border-stone-300 hover:border-stone-500"
-                        }`}
+                            ? "text-sm font-medium px-4 py-2.5 rounded-md border border-fg bg-fg text-surface-fg min-h-[44px] transition"
+                            : "text-sm font-medium px-4 py-2.5 rounded-md border border-hairline hover:border-fg hover:bg-bg-soft min-h-[44px] transition"
+                        }
                       >
                         {hhmm}
                         {selectedStylistId === null && stylist && (
-                          <span className="ml-2 text-xs opacity-70">
+                          <span
+                            className={`ml-2 text-xs ${
+                              isSelected ? "text-surface-muted" : "text-muted"
+                            }`}
+                          >
                             {stylist.name.split(" ")[0]}
                           </span>
                         )}
@@ -207,23 +196,76 @@ export function SlotStep({
         </div>
       )}
 
-      <div className="mt-8 border-t border-stone-200 pt-6 flex items-center justify-between">
-        <button
-          type="button"
-          onClick={onPrev}
-          className="text-stone-600 hover:text-stone-900 px-4 py-2"
-        >
+      <div className="mt-10 border-t border-hairline pt-6 flex items-center justify-between">
+        <button type="button" onClick={onPrev} className="btn-ghost">
           ← Zpět
         </button>
         {selectedSlot && (
           <button
             type="button"
             onClick={onNext}
-            className="bg-stone-900 text-white px-6 py-2 rounded-md hover:bg-stone-800 transition"
+            className="btn-primary btn-primary-hover"
           >
             Pokračovat →
           </button>
         )}
+      </div>
+    </div>
+  );
+}
+
+function StylistChip({
+  label,
+  selected,
+  onClick,
+}: {
+  label: string;
+  selected: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={
+        selected
+          ? "px-4 py-2.5 rounded-pill border border-fg bg-fg text-surface-fg text-sm font-medium min-h-[44px] transition"
+          : "px-4 py-2.5 rounded-pill border border-hairline hover:border-fg text-sm font-medium min-h-[44px] transition"
+      }
+    >
+      {label}
+    </button>
+  );
+}
+
+function SlotsLoadingSkeleton() {
+  return (
+    <div className="space-y-6 animate-pulse">
+      {[1, 2, 3].map((day) => (
+        <div key={day}>
+          <div className="h-3 w-20 bg-bg-soft rounded mb-3" />
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 6 + ((day * 3) % 5) }).map((_, i) => (
+              <div
+                key={i}
+                className="h-11 w-20 rounded-md bg-bg-soft"
+              />
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function EmptySlots() {
+  return (
+    <div className="border border-dashed border-hairline rounded-lg p-10 text-center">
+      <div className="font-display text-2xl text-muted mb-2">∅</div>
+      <div className="font-medium text-fg mb-1">Žádné volné termíny</div>
+      <div className="text-sm text-muted max-w-sm mx-auto">
+        V nejbližších 14 dnech nemáme pro vybranou kombinaci volný slot.
+        Zkuste jiného kadeřníka nebo méně služeb.
       </div>
     </div>
   );

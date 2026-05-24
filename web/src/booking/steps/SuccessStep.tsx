@@ -17,32 +17,47 @@ export function SuccessStep({ result }: Props) {
   const weekday = WEEKDAYS[new Date(Date.UTC(Y!, M! - 1, D!)).getUTCDay()];
 
   return (
-    <div className="text-center py-8">
-      <div className="text-5xl mb-4">✓</div>
-      <h1 className="text-2xl font-semibold mb-2">Rezervace potvrzena</h1>
-      <p className="text-stone-600 mb-6">
+    <div className="text-center py-6 md:py-12">
+      <div
+        className="mx-auto mb-6 w-16 h-16 rounded-full bg-fg text-surface-fg flex items-center justify-center text-3xl font-light"
+        aria-hidden
+      >
+        ✓
+      </div>
+      <h1 className="text-3xl md:text-4xl mb-3">Rezervace potvrzena</h1>
+      <p className="text-muted mb-8">
         Číslo rezervace:{" "}
-        <code className="text-stone-900">{result.bookingId}</code>
+        <code className="text-fg font-mono text-sm bg-bg-soft px-2 py-0.5 rounded">
+          {result.bookingId}
+        </code>
       </p>
 
-      <div className="bg-stone-100 rounded-md p-4 max-w-md mx-auto mb-6">
-        <div className="font-medium text-lg">
-          {weekday} {D}.{M}. · {startParts.hhmm}–{endParts.hhmm}
+      <div className="bg-bg-soft border border-hairline rounded-lg p-6 max-w-md mx-auto mb-8">
+        <div className="font-display text-2xl md:text-3xl font-medium tracking-tight">
+          {weekday} {D}.{M}.
         </div>
-        <div className="text-stone-600 mt-2">{result.totalPrice} Kč</div>
+        <div className="text-lg text-fg mt-1">
+          {startParts.hhmm}–{endParts.hhmm}
+        </div>
+        <div className="border-t border-hairline mt-4 pt-4">
+          <div className="label-mono mb-1">Celkem</div>
+          <div className="font-display text-2xl font-medium">
+            {result.totalPrice} Kč
+          </div>
+        </div>
       </div>
 
-      <p className="text-sm text-stone-500 mb-6 max-w-md mx-auto">
+      <p className="text-sm text-muted mb-8 max-w-md mx-auto">
         Potvrzení a odkaz pro zrušení rezervace byly odeslány na váš e-mail.
         (V demo prostředí se e-mail loguje do konzole / kolekce{" "}
-        <code>notifications/</code>.)
+        <code className="font-mono text-xs bg-bg-soft px-1.5 py-0.5 rounded">
+          notifications/
+        </code>
+        .)
       </p>
 
-      <div className="flex justify-center gap-4">
-        <Link
-          to="/"
-          className="bg-stone-900 text-white px-6 py-2 rounded-md hover:bg-stone-800 transition"
-        >
+      <div className="flex justify-center">
+        <Link to="/" className="btn-primary btn-primary-hover">
           Zpět na úvod
         </Link>
       </div>

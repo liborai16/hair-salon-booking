@@ -33,107 +33,165 @@ export function BookingShell({
 
   if (servicesError || stylistsError) {
     return (
-      <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+      <div className="text-sm text-danger bg-danger-soft border border-danger/20 rounded-md p-3">
         Chyba načítání: {servicesError ?? stylistsError}
       </div>
     );
   }
 
   if (!services || !stylists) {
-    return <div className="text-stone-500">Načítám…</div>;
+    return <BookingLoadingSkeleton />;
   }
 
-  switch (state.step) {
-    case "services":
-      return (
-        <ServiceStep
-          services={services}
-          selectedIds={state.selectedServiceIds}
-          serviceLengths={state.serviceLengths}
-          onToggle={(serviceId) =>
-            dispatch({ type: "TOGGLE_SERVICE", serviceId })
+  const stepOrder = ["services", "slot", "customer", "confirm"] as const;
+  const currentIdx = stepOrder.indexOf(state.step as typeof stepOrder[number]);
+  const showProgress = state.step !== "success";
+
+  return (
+    <div>
+      {showProgress && currentIdx >= 0 && (
+        <StepProgress current={currentIdx} total={stepOrder.length} />
+      )}
+      {(() => {
+        switch (state.step) {
+          case "services":
+            return (
+              <ServiceStep
+                services={services}
+                selectedIds={state.selectedServiceIds}
+                serviceLengths={state.serviceLengths}
+                onToggle={(serviceId) =>
+                  dispatch({ type: "TOGGLE_SERVICE", serviceId })
+                }
+                onSetLength={(serviceId, length) =>
+                  dispatch({ type: "SET_LENGTH", serviceId, length })
+                }
+                onNext={() => dispatch({ type: "NEXT_STEP" })}
+              />
+            );
+          case "slot": {
+            const selectedServices = services.filter((s) =>
+              state.selectedServiceIds.includes(s.id),
+            );
+            return (
+              <SlotStep
+                services={selectedServices}
+                serviceLengths={state.serviceLengths}
+                stylists={stylists}
+                override={override}
+                selectedStylistId={state.selectedStylistId}
+                selectedSlot={state.selectedSlot}
+                minLeadTimeMinutes={minLeadTimeMinutesOverride}
+                onSelectStylist={(stylistId) =>
+                  dispatch({ type: "SELECT_STYLIST", stylistId })
+                }
+                onSelectSlot={(slot) => dispatch({ type: "SELECT_SLOT", slot })}
+                onPrev={() => dispatch({ type: "PREV_STEP" })}
+                onNext={() => dispatch({ type: "NEXT_STEP" })}
+              />
+            );
           }
-          onSetLength={(serviceId, length) =>
-            dispatch({ type: "SET_LENGTH", serviceId, length })
+          case "customer":
+            return (
+              <CustomerStep
+                initial={state.customer}
+                onSubmit={(customer) => {
+                  dispatch({ type: "SET_CUSTOMER", customer });
+                  dispatch({ type: "NEXT_STEP" });
+                }}
+                onPrev={() => dispatch({ type: "PREV_STEP" })}
+              />
+            );
+          case "confirm": {
+            const selectedServices = services.filter((s) =>
+              state.selectedServiceIds.includes(s.id),
+            );
+            const stylist =
+              state.selectedSlot &&
+              stylists.find((s) => s.id === state.selectedSlot!.stylistId);
+            if (
+              selectedServices.length === 0 ||
+              !state.selectedSlot ||
+              !stylist ||
+              !state.customer
+            ) {
+              return (
+                <div className="text-sm text-warning bg-warning-soft border border-warning/20 rounded-md p-3">
+                  Rezervace má neúplná data. Začněte prosím od začátku.
+                </div>
+              );
+            }
+            return (
+              <ConfirmStep
+                services={selectedServices}
+                serviceLengths={state.serviceLengths}
+                stylist={stylist}
+                slot={state.selectedSlot}
+                customer={state.customer}
+                onPrev={() => dispatch({ type: "PREV_STEP" })}
+                onSuccess={(result) =>
+                  dispatch({ type: "SUBMIT_SUCCESS", result })
+                }
+              />
+            );
           }
-          onNext={() => dispatch({ type: "NEXT_STEP" })}
-        />
-      );
-    case "slot": {
-      const selectedServices = services.filter((s) =>
-        state.selectedServiceIds.includes(s.id),
-      );
-      return (
-        <SlotStep
-          services={selectedServices}
-          serviceLengths={state.serviceLengths}
-          stylists={stylists}
-          override={override}
-          selectedStylistId={state.selectedStylistId}
-          selectedSlot={state.selectedSlot}
-          minLeadTimeMinutes={minLeadTimeMinutesOverride}
-          onSelectStylist={(stylistId) =>
-            dispatch({ type: "SELECT_STYLIST", stylistId })
+          case "success": {
+            if (!state.result) {
+              return (
+                <div className="text-sm text-warning bg-warning-soft border border-warning/20 rounded-md p-3">
+                  Chybí výsledek rezervace.
+                </div>
+              );
+            }
+            return <SuccessStep result={state.result} />;
           }
-          onSelectSlot={(slot) => dispatch({ type: "SELECT_SLOT", slot })}
-          onPrev={() => dispatch({ type: "PREV_STEP" })}
-          onNext={() => dispatch({ type: "NEXT_STEP" })}
-        />
-      );
-    }
-    case "customer":
-      return (
-        <CustomerStep
-          initial={state.customer}
-          onSubmit={(customer) => {
-            dispatch({ type: "SET_CUSTOMER", customer });
-            dispatch({ type: "NEXT_STEP" });
-          }}
-          onPrev={() => dispatch({ type: "PREV_STEP" })}
-        />
-      );
-    case "confirm": {
-      // Guard: confirm requires all upstream state. If user navigated here
-      // with a missing piece (e.g. stale state), kick back to services step.
-      const selectedServices = services.filter((s) =>
-        state.selectedServiceIds.includes(s.id),
-      );
-      const stylist =
-        state.selectedSlot &&
-        stylists.find((s) => s.id === state.selectedSlot!.stylistId);
-      if (
-        selectedServices.length === 0 ||
-        !state.selectedSlot ||
-        !stylist ||
-        !state.customer
-      ) {
-        return (
-          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
-            Rezervace má neúplná data. Začněte prosím od začátku.
-          </div>
-        );
-      }
-      return (
-        <ConfirmStep
-          services={selectedServices}
-          serviceLengths={state.serviceLengths}
-          stylist={stylist}
-          slot={state.selectedSlot}
-          customer={state.customer}
-          onPrev={() => dispatch({ type: "PREV_STEP" })}
-          onSuccess={(result) => dispatch({ type: "SUBMIT_SUCCESS", result })}
-        />
-      );
-    }
-    case "success": {
-      if (!state.result) {
-        return (
-          <div className="text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-md p-3">
-            Chybí výsledek rezervace.
-          </div>
-        );
-      }
-      return <SuccessStep result={state.result} />;
-    }
-  }
+        }
+      })()}
+    </div>
+  );
+}
+
+const STEP_LABELS = ["Služby", "Termín", "Údaje", "Potvrzení"];
+
+function StepProgress({ current, total }: { current: number; total: number }) {
+  return (
+    <div className="mb-8 md:mb-10">
+      <div className="flex items-center gap-3" aria-hidden>
+        {Array.from({ length: total }, (_, i) => {
+          const active = i === current;
+          const done = i < current;
+          return (
+            <div key={i} className="flex-1 flex items-center gap-3">
+              <div
+                className={`h-1 flex-1 rounded-pill transition-colors ${
+                  done || active ? "bg-fg" : "bg-hairline"
+                }`}
+              />
+              {i === total - 1 && (
+                <span className="label-mono text-fg">
+                  {current + 1} / {total}
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <div className="mt-2 label-mono">
+        Krok {current + 1}: {STEP_LABELS[current]}
+      </div>
+    </div>
+  );
+}
+
+function BookingLoadingSkeleton() {
+  return (
+    <div className="space-y-4 animate-pulse">
+      <div className="h-8 w-1/3 rounded-md bg-bg-soft" />
+      <div className="space-y-2">
+        <div className="h-16 rounded-md bg-bg-soft" />
+        <div className="h-16 rounded-md bg-bg-soft" />
+        <div className="h-16 rounded-md bg-bg-soft" />
+      </div>
+    </div>
+  );
 }
