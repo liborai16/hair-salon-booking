@@ -45,7 +45,6 @@ export function ServiceStep({
     return sum + Math.round(base * LEVEL_MULTIPLIER.standard);
   }, 0);
 
-  // Group by category for the picker (categorized per case study spec).
   const grouped = services.reduce((acc, svc) => {
     const list = acc.get(svc.category) ?? [];
     list.push(svc);
@@ -54,100 +53,173 @@ export function ServiceStep({
   }, new Map<ServiceCategory, Service[]>());
 
   return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-6">1. Vyberte služby</h1>
-      <div className="space-y-6">
+    <div className="pb-32">
+      <h1 className="text-3xl md:text-4xl mb-2">Vyberte služby</h1>
+      <p className="text-muted mb-10">
+        Kombinujte podle libosti. Cena se přepočítá podle vybraného kadeřníka.
+      </p>
+
+      <div className="space-y-10">
         {Array.from(grouped.entries()).map(([cat, list]) => (
-          <div key={cat}>
-            <h2 className="text-sm font-medium text-stone-500 uppercase tracking-wide mb-2">
-              {CATEGORY_LABELS[cat]}
-            </h2>
-            <div className="space-y-2">
-              {list.map((svc) => {
-                const isSelected = selectedIds.includes(svc.id);
-                const usesLength =
-                  svc.category === "barveni" && svc.lengthVariants !== undefined;
-                return (
-                  <div
-                    key={svc.id}
-                    className={`border rounded-md p-3 cursor-pointer transition ${
-                      isSelected
-                        ? "border-stone-900 bg-stone-100"
-                        : "border-stone-200 hover:border-stone-300"
-                    }`}
-                    onClick={() => onToggle(svc.id)}
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">{svc.name}</div>
-                        <div className="text-sm text-stone-500">
-                          {svc.durationMinutes} min · od {svc.basePrice} Kč
-                        </div>
-                      </div>
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        readOnly
-                        className="h-5 w-5"
-                      />
-                    </div>
-                    {isSelected && usesLength && (
-                      <div
-                        className="mt-3 flex flex-wrap gap-2"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        {(["short", "medium", "long"] as const).map((len) => {
-                          const active =
-                            (serviceLengths[svc.id] ?? "short") === len;
-                          return (
-                            <button
-                              key={len}
-                              type="button"
-                              onClick={() => onSetLength(svc.id, len)}
-                              className={`text-xs px-3 py-1 rounded-md border ${
-                                active
-                                  ? "border-stone-900 bg-stone-900 text-white"
-                                  : "border-stone-300 hover:border-stone-500"
-                              }`}
-                            >
-                              {LENGTH_LABELS[len]} ({svc.lengthVariants![len]}{" "}
-                              Kč)
-                            </button>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
+          <section key={cat}>
+            <div className="flex items-baseline justify-between mb-4">
+              <h2 className="label-mono">{CATEGORY_LABELS[cat]}</h2>
+              <span className="label-mono text-muted">
+                {list.length} {list.length === 1 ? "služba" : "služby"}
+              </span>
             </div>
-          </div>
+            <div className="grid sm:grid-cols-2 gap-3">
+              {list.map((svc) => (
+                <ServiceCard
+                  key={svc.id}
+                  svc={svc}
+                  selected={selectedIds.includes(svc.id)}
+                  selectedLength={serviceLengths[svc.id]}
+                  onToggle={() => onToggle(svc.id)}
+                  onSetLength={(len) => onSetLength(svc.id, len)}
+                />
+              ))}
+            </div>
+          </section>
         ))}
       </div>
 
-      {selectedIds.length > 0 && (
-        <div className="mt-8 border-t border-stone-200 pt-6 flex items-center justify-between">
-          <div>
-            <div className="text-sm text-stone-500">
-              Vybráno {selectedIds.length} služ.
-            </div>
-            <div className="font-medium">
-              ~{estDuration} min · ~{estPrice} Kč
-            </div>
-            <div className="text-xs text-stone-400 mt-1">
-              Odhad ve standardní tarifě — finální cena podle vybraného
-              kadeřníka.
-            </div>
+      {selectedIds.length > 0 && <StickyFooter
+        count={selectedIds.length}
+        duration={estDuration}
+        price={estPrice}
+        onNext={onNext}
+      />}
+    </div>
+  );
+}
+
+function ServiceCard({
+  svc,
+  selected,
+  selectedLength,
+  onToggle,
+  onSetLength,
+}: {
+  svc: Service;
+  selected: boolean;
+  selectedLength: "short" | "medium" | "long" | undefined;
+  onToggle: () => void;
+  onSetLength: (len: "short" | "medium" | "long") => void;
+}) {
+  const usesLength =
+    svc.category === "barveni" && svc.lengthVariants !== undefined;
+  const activeLen = selectedLength ?? "short";
+
+  return (
+    <div
+      className={
+        selected
+          ? "border-2 border-fg bg-bg-soft rounded-lg p-5 transition cursor-pointer"
+          : "border border-hairline hover:border-fg rounded-lg p-5 transition cursor-pointer"
+      }
+      onClick={onToggle}
+      role="button"
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle();
+        }
+      }}
+    >
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <div className="font-display text-lg md:text-xl font-medium tracking-tight">
+            {svc.name}
           </div>
-          <button
-            type="button"
-            onClick={onNext}
-            className="bg-stone-900 text-white px-6 py-2 rounded-md hover:bg-stone-800 transition"
-          >
-            Pokračovat →
-          </button>
+          <div className="mt-1 label-mono">{svc.durationMinutes} min</div>
+        </div>
+        <div className="text-right shrink-0">
+          <div className="font-display text-xl md:text-2xl font-medium tracking-tight">
+            {usesLength
+              ? svc.lengthVariants![activeLen]
+              : svc.basePrice}{" "}
+            <span className="text-sm text-muted font-sans font-normal">Kč</span>
+          </div>
+          {selected && (
+            <div
+              className="mt-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-fg text-surface-fg text-[10px] font-bold"
+              aria-hidden
+            >
+              ✓
+            </div>
+          )}
+        </div>
+      </div>
+
+      {selected && usesLength && (
+        <div
+          className="mt-4 pt-4 border-t border-hairline"
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="label-mono mb-2">Délka vlasů</div>
+          <div className="grid grid-cols-3 gap-1 p-1 bg-bg rounded-md border border-hairline">
+            {(["short", "medium", "long"] as const).map((len) => {
+              const active = activeLen === len;
+              return (
+                <button
+                  key={len}
+                  type="button"
+                  onClick={() => onSetLength(len)}
+                  className={
+                    active
+                      ? "text-xs font-medium py-2.5 rounded bg-fg text-surface-fg transition min-h-[44px]"
+                      : "text-xs font-medium py-2.5 rounded text-muted hover:text-fg transition min-h-[44px]"
+                  }
+                >
+                  {LENGTH_LABELS[len]}
+                  <span className="block text-[10px] opacity-70 mt-0.5">
+                    {svc.lengthVariants![len]} Kč
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function StickyFooter({
+  count,
+  duration,
+  price,
+  onNext,
+}: {
+  count: number;
+  duration: number;
+  price: number;
+  onNext: () => void;
+}) {
+  return (
+    <div className="fixed bottom-0 inset-x-0 z-20 border-t border-hairline bg-bg/95 backdrop-blur supports-[backdrop-filter]:bg-bg/85">
+      <div className="container mx-auto max-w-3xl px-4 py-4 flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <div className="label-mono mb-0.5 truncate">
+            Vybráno {count} {count === 1 ? "služba" : count < 5 ? "služby" : "služeb"}
+          </div>
+          <div className="font-display text-xl font-medium tracking-tight">
+            ~{price} Kč
+            <span className="ml-2 text-sm text-muted font-sans font-normal">
+              · {duration} min
+            </span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={onNext}
+          className="btn-primary btn-primary-hover shrink-0"
+        >
+          Pokračovat →
+        </button>
+      </div>
     </div>
   );
 }
