@@ -294,3 +294,7 @@
     animation: none;
   }
 }
+
+/* Hide scrollbar but keep functionality (Phase 8.3.E.1 — for horizontal nav overflow) */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
