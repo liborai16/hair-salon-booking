@@ -1,54 +1,68 @@
 @import "tailwindcss";
 
 /* ─────────────────────────────────────────────────────────────────────
- * Salon Krásná — Modern luxe theme (Day 6 visual polish phase)
+ * Salon Krásná — Cinematic Wellness Luxury theme (Phase 8.1)
  *
- * Palette: charcoal + champagne on white. Hairline borders, no shadow.
- * Type:    Fraunces (display serif), Inter (UI sans), JetBrains Mono
- *          (labels). Loaded via Google Fonts in index.html.
+ * Inspired by moodboard sekce 3 (futuristic wellness apps) — 60% dominance.
+ * Multi-layer gradient atmosphere + multi-color aurora glow + Inter display
+ * typography + Lavender accent retained from Premium Dark experiment.
  *
- * Tokens consumed by Tailwind 4 utilities automatically:
- *   --color-{name}  → bg-{name} text-{name} border-{name} ring-{name}
- *   --font-{name}   → font-{name}
- *   --radius-{name} → rounded-{name}
+ * 8.1 = tokens ONLY. Components refactor in Phase 8.2+ (Landing → booking flow).
  * ─────────────────────────────────────────────────────────────────── */
 
 @theme {
-  /* Colors — neutrals */
-  --color-bg: #ffffff;
-  --color-bg-soft: #f8f6f2;        /* warm off-white card fill */
-  --color-fg: #0a0a0a;             /* near-black primary text */
-  --color-muted: #6b6b6b;          /* secondary text */
-  --color-hairline: #e8e5df;       /* borders, dividers */
+  /* ATMOSPHERIC BG (gradient layered, NOT flat) */
+  --color-bg-base: #0A0814;
+  --color-bg-gradient-top: #1A0F2E;
+  --color-bg-gradient-mid: #0F0A1F;
+  --color-bg-gradient-bot: #050308;
+  --color-bg: #0A0814;
+  --color-bg-soft: rgba(255, 255, 255, 0.03);
+  --color-surface-1: rgba(255, 255, 255, 0.03);
+  --color-surface-2: rgba(255, 255, 255, 0.06);
+  --color-surface: rgba(255, 255, 255, 0.05);
 
-  /* Colors — surface (dark inversions: CTA, hero, footer accents) */
-  --color-surface: #1a1a1a;        /* charcoal */
-  --color-surface-soft: #2a2a2a;
-  --color-surface-fg: #ffffff;
-  --color-surface-muted: #a3a3a3;
+  /* TEXT */
+  --color-fg: #FFFFFF;
+  --color-text-2: #C5C5D2;
+  --color-muted: #7C7C8A;
+  --color-surface-fg: #FFFFFF;
+  --color-surface-muted: #7C7C8A;
 
-  /* Colors — accent (champagne) */
-  --color-accent: #c9a876;
-  --color-accent-soft: #f2eadb;
-  --color-accent-strong: #a8884f;
+  /* ACCENT (Lavender retained from Premium Dark) */
+  --color-accent: #B8A1F5;
+  --color-accent-strong: #9B7FE8;
+  --color-accent-soft: rgba(184, 161, 245, 0.10);
+  --color-accent-glow: rgba(184, 161, 245, 0.30);
 
-  /* Colors — status (functional, kept conservative for forms/errors) */
-  --color-success: #15803d;
-  --color-warning: #b45309;
-  --color-warning-soft: #fef3c7;
-  --color-danger: #b91c1c;
-  --color-danger-soft: #fee2e2;
+  /* AURORA GLOWS (multi-color atmospheric) */
+  --color-glow-violet: rgba(139, 92, 246, 0.20);
+  --color-glow-pink: rgba(236, 72, 153, 0.14);
+  --color-glow-cyan: rgba(103, 232, 249, 0.10);
+  --color-glow-amber: rgba(251, 191, 119, 0.10);
 
-  /* Type families */
-  --font-display: "Fraunces", Georgia, "Times New Roman", serif;
-  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI",
-    Roboto, sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* BORDERS */
+  --color-hairline: rgba(255, 255, 255, 0.10);
+  --color-line-strong: rgba(255, 255, 255, 0.16);
 
-  /* Radii */
-  --radius-sm: 4px;
-  --radius-md: 8px;
-  --radius-lg: 16px;
+  /* STATUS */
+  --color-success: #6EE7B7;
+  --color-warning: #FBBF77;
+  --color-warning-soft: rgba(251, 191, 119, 0.12);
+  --color-danger: #FCA5A5;
+  --color-danger-soft: rgba(252, 165, 165, 0.12);
+
+  /* TYPOGRAPHY */
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-serif: "Fraunces", Georgia, serif;
+  --font-sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, monospace;
+
+  /* RADII (generous pro premium feel) */
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-xl: 32px;
   --radius-pill: 999px;
 }
 
@@ -59,59 +73,100 @@
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
+
   body {
-    background: var(--color-bg);
+    background:
+      radial-gradient(ellipse at top, #1A0F2E 0%, transparent 50%),
+      radial-gradient(ellipse at bottom, #050308 0%, transparent 50%),
+      linear-gradient(180deg, #0A0814 0%, #0F0A1F 50%, #0A0814 100%);
+    background-attachment: fixed;
+    color: var(--color-fg);
+    position: relative;
+    overflow-x: hidden;
+    min-height: 100vh;
   }
+
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    background:
+      radial-gradient(circle at 15% 25%, var(--color-glow-violet), transparent 40%),
+      radial-gradient(circle at 85% 70%, var(--color-glow-pink), transparent 40%),
+      radial-gradient(circle at 50% 90%, var(--color-glow-amber), transparent 35%);
+  }
+
+  #root {
+    position: relative;
+    z-index: 1;
+  }
+
   h1, h2, h3 {
     font-family: var(--font-display);
-    font-weight: 500;
-    letter-spacing: -0.02em;
+    font-weight: 600;
+    letter-spacing: -0.03em;
     color: var(--color-fg);
+    line-height: 1.05;
   }
+
   h4, h5, h6 {
     font-family: var(--font-sans);
     font-weight: 600;
     letter-spacing: -0.01em;
   }
+
+  .font-serif-italic {
+    font-family: var(--font-serif);
+    font-style: italic;
+    font-weight: 500;
+  }
+
   code, kbd, pre, samp {
     font-family: var(--font-mono);
   }
+
   ::selection {
     background: var(--color-accent-soft);
     color: var(--color-fg);
   }
-  /* Tap targets baseline — buttons + links at 44×44 min on touch */
+
   button, a {
     -webkit-tap-highlight-color: transparent;
   }
 }
 
-/* ─── Component utilities (DRY for repeated patterns) ─────────────── */
-
 @utility btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-surface);
-  color: var(--color-surface-fg);
-  padding: 0.75rem 1.5rem;
+  background: var(--color-accent);
+  color: var(--color-bg-base);
+  padding: 1rem 2rem;
   border-radius: var(--radius-md);
-  font-weight: 500;
+  font-weight: 600;
   font-size: 0.9375rem;
   letter-spacing: -0.005em;
-  transition: opacity 150ms, transform 150ms;
-  min-height: 44px;
+  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
+  min-height: 52px;
+  box-shadow: 0 4px 24px var(--color-accent-soft);
 }
+
 @utility btn-primary-hover {
   &:hover {
-    opacity: 0.88;
+    background: var(--color-accent-strong);
+    box-shadow: 0 8px 32px var(--color-accent-glow);
+    transform: translateY(-1px);
   }
   &:active {
-    transform: translateY(1px);
+    transform: translateY(0);
   }
   &:disabled {
     opacity: 0.4;
     cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
   }
 }
 
@@ -119,20 +174,20 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: transparent;
-  color: var(--color-muted);
-  padding: 0.625rem 1rem;
+  background: var(--color-surface-1);
+  color: var(--color-text-2);
+  padding: 1rem 1.5rem;
   border-radius: var(--radius-md);
+  border: 1px solid var(--color-hairline);
   font-weight: 500;
   font-size: 0.9375rem;
-  transition: color 150ms;
-  min-height: 44px;
+  transition: all 250ms;
+  min-height: 52px;
+  backdrop-filter: blur(20px);
   &:hover {
     color: var(--color-fg);
-  }
-  &:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+    border-color: var(--color-line-strong);
+    background: var(--color-surface-2);
   }
 }
 
@@ -141,6 +196,16 @@
   font-size: 0.6875rem;
   font-weight: 400;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
   color: var(--color-muted);
+}
+
+@utility glass-card {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
