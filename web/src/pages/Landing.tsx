@@ -1,195 +1,264 @@
 import { Link } from "react-router-dom";
+import BackgroundGradientAnimation from "@/components/ui/aceternity/background-gradient-animation";
+import { cn } from "@/lib/cn";
 
 /**
- * Landing — public marketing surface. Modern luxe theme: charcoal +
- * champagne on white, Fraunces display + Inter body + JetBrains Mono
- * labels. No hero photography — typography-driven editorial layout.
+ * Landing — Cinematic Wellness Luxury edition (Phase 8.3.B).
  *
- * Sections:
- *  1. Hero          (full-bleed display H1 + dual CTA + meta strip)
- *  2. Value props   (3-column "Proč nás" with numbered labels)
- *  3. Services      (typography preview grid + bridge CTA)
- *  4. Dark CTA band (charcoal section + inverted CTA)
+ * Fullscreen scroll-snap composition: 5 sections, each min-h-screen
+ * (final 80vh). Asymmetric editorial layouts, full-bleed Spotlight,
+ * single primary CTA per surface, dark theme.
+ *
+ * Outer wrapper is <div> (not <main>) because Layout already provides
+ * the page's <main> landmark wrapping <Outlet />.
  */
 export function Landing() {
   return (
-    <>
-      <Hero />
-      <ValueProps />
-      <ServicesPreview />
-      <CtaBand />
-    </>
-  );
-}
-
-function Hero() {
-  return (
-    <section className="container mx-auto max-w-6xl px-4 pt-12 pb-16 md:pt-20 md:pb-28">
-      <div className="label-mono mb-6">
-        Kadeřnický salon · Praha
-      </div>
-      <h1 className="font-display text-5xl md:text-7xl lg:text-8xl font-medium tracking-tight max-w-4xl leading-[1.05]">
-        Vlasy, na které si{" "}
-        <span className="text-accent-strong italic">vzpomenete</span>.
-      </h1>
-      <p className="mt-8 text-lg md:text-xl text-muted max-w-2xl leading-relaxed">
-        Rezervujte si termín online za pár sekund. Vyberte si službu,
-        kadeřníka i čas — bez čekání na recepci, bez registrace.
-      </p>
-      <div className="mt-10 flex flex-col sm:flex-row gap-3">
-        <Link to="/book" className="btn-primary btn-primary-hover">
-          Rezervovat termín →
-        </Link>
-        <a
-          href="#proc-nas"
-          className="btn-ghost border border-hairline hover:border-fg"
-        >
-          Jak to funguje
-        </a>
-      </div>
-
-      <dl className="mt-16 md:mt-20 grid grid-cols-3 gap-6 md:gap-12 max-w-2xl border-t border-hairline pt-8">
-        <Stat value="5" label="kadeřníků" />
-        <Stat value="9" label="služeb" />
-        <Stat value="14" label="dní napřed" />
-      </dl>
-    </section>
-  );
-}
-
-function Stat({ value, label }: { value: string; label: string }) {
-  return (
-    <div>
-      <dt className="font-display text-4xl md:text-5xl font-medium tracking-tight">
-        {value}
-      </dt>
-      <dd className="mt-2 label-mono">{label}</dd>
+    <div className="snap-y snap-mandatory h-screen overflow-y-scroll">
+      <Section1Hero />
+      <Section2Trust />
+      <Section3Services />
+      <Section4HowItWorks />
+      <Section5CTAFinale />
     </div>
   );
 }
 
-function ValueProps() {
+function Section1Hero() {
   return (
-    <section
-      id="proc-nas"
-      className="container mx-auto max-w-6xl px-4 py-16 md:py-24 border-t border-hairline"
-    >
-      <div className="label-mono mb-4">Proč nás</div>
-      <h2 className="font-display text-3xl md:text-5xl font-medium tracking-tight max-w-3xl leading-[1.1]">
-        Stvořeno pro pohodlí klientů i salonu.
-      </h2>
-      <div className="mt-12 md:mt-16 grid md:grid-cols-3 gap-10 md:gap-12">
-        <ValueCard
-          number="01"
-          title="Online rezervace"
-          body="Vyberte si termín kdykoliv, bez čekání na recepci. Garantovaný slot, e-mail s potvrzením a odkazem pro zrušení."
-        />
-        <ValueCard
-          number="02"
-          title="Tým 5 kadeřníků"
-          body="Od juniorky po mistrovou s 15 lety praxe. Můžete si vybrat osobu — nebo nechat „kdokoliv“ a vidět všechny volné sloty."
-        />
-        <ValueCard
-          number="03"
-          title="Transparentní cena"
-          body="Cena podle úrovně kadeřníka. U barvení podle délky vlasů. Žádné překvapení u pokladny."
-        />
+    <section className="snap-start min-h-screen relative overflow-hidden flex items-center">
+      <BackgroundGradientAnimation interactive />
+
+      <div className="relative z-10 container mx-auto max-w-7xl px-6 md:px-12">
+        <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-8 md:mb-12">
+          Kadeřnický salon · Praha
+        </div>
+
+        <h1 className="font-display font-medium tracking-tight leading-[0.95]">
+          <span className="block text-[clamp(56px,12vw,160px)]">
+            Vlasy, na které si
+          </span>
+          <span className="block text-[clamp(56px,12vw,160px)] italic text-[var(--color-accent)] mt-2">
+            vzpomenete<span className="text-white">.</span>
+          </span>
+        </h1>
+
+        <p className="mt-12 md:mt-16 text-[clamp(16px,1.8vw,20px)] text-white/60 max-w-2xl">
+          Rezervujte si termín online za pár sekund. Bez čekání na recepci,
+          bez registrace.
+        </p>
+
+        <div className="mt-12 md:mt-16">
+          <Link
+            to="/book"
+            className="inline-flex items-center gap-2 px-10 py-5 rounded-full text-white text-base md:text-lg font-medium bg-gradient-to-r from-[var(--color-accent)] to-violet-500 shadow-[0_20px_60px_rgba(139,92,246,0.4)] hover:scale-105 transition-transform"
+          >
+            Rezervovat termín
+            <span className="text-xl">→</span>
+          </Link>
+        </div>
+      </div>
+
+      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/30 text-xs tracking-widest">
+        ↓ ZJISTIT VÍCE
       </div>
     </section>
   );
 }
 
-function ValueCard({
+function Section2Trust() {
+  return (
+    <section className="snap-start min-h-screen relative overflow-hidden flex items-center">
+      <div className="container mx-auto max-w-7xl px-6 md:px-12">
+        <div className="grid md:grid-cols-12 gap-12 md:gap-20 items-center">
+          <div className="md:col-span-7">
+            <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-6">
+              Proč nás
+            </div>
+            <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)]">
+              Stvořeno pro pohodlí klientů
+              <span className="italic text-[var(--color-accent)]"> i salonu.</span>
+            </h2>
+            <p className="mt-8 text-[clamp(16px,1.8vw,20px)] text-white/60 max-w-xl">
+              Online rezervace bez čekání. Tým 5 kadeřníků. Transparentní cena
+              bez překvapení.
+            </p>
+          </div>
+
+          <div className="md:col-span-5 space-y-8 md:space-y-12">
+            <Metric value="5" label="Kadeřníků" />
+            <Metric value="9" label="Služeb" />
+            <Metric value="14" label="Dní napřed" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="border-l border-white/10 pl-6">
+      <div className="font-display text-[clamp(56px,8vw,96px)] leading-none">
+        {value}
+      </div>
+      <div className="text-xs uppercase tracking-[0.2em] text-white/40 mt-2">
+        {label}
+      </div>
+    </div>
+  );
+}
+
+function Section3Services() {
+  return (
+    <section className="snap-start min-h-screen relative overflow-hidden flex items-center">
+      <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
+        <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-6">
+          Naše služby
+        </div>
+        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-16 md:mb-24">
+          Co pro vás <span className="italic text-[var(--color-accent)]">uděláme</span>.
+        </h2>
+
+        {/* TODO Phase 8.3.D: Replace placeholder ServiceCards with 3D Card Effect + Wobble Card */}
+        <div className="relative h-[400px] md:h-[500px]">
+          <ServiceCard
+            title="Stříhání"
+            className="absolute top-0 left-0 w-[55%] h-[260px] md:h-[320px]"
+          />
+          <ServiceCard
+            title="Barvení"
+            className="absolute top-[40px] right-0 w-[40%] h-[220px] md:h-[280px]"
+          />
+          <ServiceCard
+            title="Foukaná"
+            className="absolute bottom-0 left-[20%] w-[50%] h-[200px] md:h-[260px]"
+          />
+          <ServiceCard
+            title="Dětský střih"
+            subtle
+            className="absolute bottom-[30px] right-[5%] w-[35%] h-[180px] md:h-[220px]"
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function ServiceCard({
+  title,
+  subtle,
+  className,
+}: {
+  title: string;
+  subtle?: boolean;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "rounded-2xl md:rounded-3xl backdrop-blur-xl border flex items-end p-6 md:p-8",
+        subtle
+          ? "bg-white/[0.02] border-white/[0.05]"
+          : "bg-white/[0.04] border-white/[0.08]",
+        "shadow-[0_20px_60px_rgba(0,0,0,0.3)]",
+        "hover:bg-white/[0.06] hover:border-[var(--color-accent)]/30 transition-colors",
+        className,
+      )}
+    >
+      <h3 className="font-display text-[clamp(24px,3vw,40px)] font-medium tracking-tight">
+        {title}
+      </h3>
+    </div>
+  );
+}
+
+function Section4HowItWorks() {
+  return (
+    <section className="snap-start min-h-screen relative overflow-hidden flex items-center">
+      <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
+        <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-6">
+          Jak to funguje
+        </div>
+        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-16 md:mb-24">
+          Tři kroky k <span className="italic text-[var(--color-accent)]">termínu</span>.
+        </h2>
+
+        {/* TODO Phase 8.3.E: Add Tracing Beam + Timeline component */}
+        <div className="space-y-16 md:space-y-24 max-w-3xl">
+          <Step
+            number="01"
+            title="Vyberte si službu"
+            description="Stříhání, barvení, foukaná, ošetření. Kombinace povoleny."
+          />
+          <Step
+            number="02"
+            title="Najděte volný termín"
+            description="Filtruj podle kadeřníka nebo nechej 'kdokoliv' a uvidíš všechny sloty."
+          />
+          <Step
+            number="03"
+            title="Zarezervujte"
+            description="E-mail + telefon. Bez registrace. Potvrzení do minuty."
+          />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function Step({
   number,
   title,
-  body,
+  description,
 }: {
   number: string;
   title: string;
-  body: string;
+  description: string;
 }) {
   return (
-    <div className="border-t border-fg pt-6">
-      <div className="font-mono text-sm text-muted mb-4">{number}</div>
-      <h3 className="font-display text-2xl font-medium tracking-tight mb-3">
-        {title}
-      </h3>
-      <p className="text-muted leading-relaxed">{body}</p>
+    <div className="flex gap-8 md:gap-12 items-start">
+      <div className="font-display text-[clamp(64px,8vw,120px)] leading-none text-[var(--color-accent)] opacity-40">
+        {number}
+      </div>
+      <div className="pt-2 md:pt-6">
+        <h3 className="font-display text-[clamp(24px,3vw,36px)] font-medium tracking-tight mb-3">
+          {title}
+        </h3>
+        <p className="text-white/60 text-[clamp(15px,1.5vw,18px)] max-w-md">
+          {description}
+        </p>
+      </div>
     </div>
   );
 }
 
-const SERVICE_PREVIEW: Array<{ name: string; from: number }> = [
-  { name: "Stříhání", from: 400 },
-  { name: "Barvení", from: 700 },
-  { name: "Foukaná", from: 350 },
-  { name: "Ošetření", from: 800 },
-  { name: "Dětský střih", from: 300 },
-  { name: "Svatební styling", from: 3000 },
-];
-
-function ServicesPreview() {
+function Section5CTAFinale() {
   return (
-    <section className="bg-bg-soft border-t border-hairline">
-      <div className="container mx-auto max-w-6xl px-4 py-16 md:py-24">
-        <div className="md:flex md:items-end md:justify-between mb-12">
-          <div>
-            <div className="label-mono mb-4">Naše služby</div>
-            <h2 className="font-display text-3xl md:text-5xl font-medium tracking-tight max-w-2xl leading-[1.1]">
-              9 služeb. Kombinujte podle libosti.
-            </h2>
-          </div>
+    <section className="snap-start min-h-[80vh] relative overflow-hidden flex items-center justify-center">
+      <BackgroundGradientAnimation interactive />
+
+      <div className="relative z-10 container mx-auto max-w-4xl px-6 md:px-12 text-center">
+        <h2 className="font-display font-medium tracking-tight leading-[0.95] text-[clamp(56px,11vw,140px)]">
+          Pojďme to
+          <span className="block italic text-[var(--color-accent)] mt-2">
+            udělat.
+          </span>
+        </h2>
+
+        <div className="mt-12 md:mt-16">
           <Link
             to="/book"
-            className="mt-6 md:mt-0 inline-flex items-center gap-2 text-fg hover:text-accent-strong transition group"
+            className="inline-flex items-center gap-3 px-12 py-6 rounded-full text-white text-lg md:text-xl font-medium bg-gradient-to-r from-[var(--color-accent)] to-violet-500 shadow-[0_30px_80px_rgba(139,92,246,0.5)] hover:scale-105 transition-transform"
           >
-            <span className="underline underline-offset-4">
-              Zobrazit všechny
-            </span>
-            <span className="transition group-hover:translate-x-0.5">→</span>
+            Rezervovat termín
+            <span className="text-2xl">→</span>
           </Link>
         </div>
-        <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-0 border-t border-hairline">
-          {SERVICE_PREVIEW.map((s) => (
-            <li
-              key={s.name}
-              className="border-b border-hairline py-6 px-2 flex items-baseline justify-between gap-3 hover:bg-bg transition"
-            >
-              <span className="font-display text-lg md:text-xl font-medium tracking-tight min-w-0">
-                {s.name}
-              </span>
-              <span className="label-mono text-fg shrink-0">
-                od {s.from} Kč
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </section>
-  );
-}
 
-function CtaBand() {
-  return (
-    <section className="bg-surface text-surface-fg">
-      <div className="container mx-auto max-w-6xl px-4 py-20 md:py-32">
-        <div className="label-mono text-surface-muted mb-4">
-          Připraveni?
-        </div>
-        <h2 className="font-display text-4xl md:text-6xl lg:text-7xl font-medium tracking-tight max-w-3xl leading-[1.05]">
-          Nový{" "}
-          <span className="text-accent italic">look</span>{" "}
-          na pár kliknutí.
-        </h2>
-        <p className="mt-6 text-lg text-surface-muted max-w-xl">
-          Vyberte si termín a my se postaráme o zbytek.
+        <p className="mt-8 text-white/40 text-sm">
+          Bez registrace · 1 minuta · Potvrzení e-mailem
         </p>
-        <Link
-          to="/book"
-          className="mt-10 inline-flex items-center justify-center bg-bg text-fg px-8 py-3 rounded-md hover:opacity-90 transition font-medium min-h-[44px]"
-        >
-          Rezervovat termín →
-        </Link>
       </div>
     </section>
   );

@@ -41,6 +41,36 @@
   --color-glow-cyan: rgba(103, 232, 249, 0.10);
   --color-glow-amber: rgba(251, 191, 119, 0.10);
 
+  /* Aurora Background (Phase 8.3.C) — cinematic multi-color swirl */
+  --aurora-cinematic: repeating-linear-gradient(
+    100deg,
+    rgba(184, 161, 245, 0.5) 10%,
+    rgba(139, 92, 246, 0.4) 15%,
+    rgba(236, 72, 153, 0.4) 20%,
+    rgba(251, 191, 119, 0.3) 25%,
+    rgba(184, 161, 245, 0.5) 30%
+  );
+
+  --aurora-mask-gradient: repeating-linear-gradient(
+    100deg,
+    rgba(255, 255, 255, 0.08) 0%,
+    rgba(255, 255, 255, 0.08) 7%,
+    transparent 10%,
+    transparent 12%,
+    rgba(255, 255, 255, 0.08) 16%
+  );
+
+  /* Background Gradient Animation (Phase 8.3.C.2) — subtle blob mesh */
+  --gradient-bg-start: rgb(10, 8, 20);
+  --gradient-bg-end: rgb(20, 15, 35);
+  --gradient-first-color: 184, 161, 245;    /* lavender */
+  --gradient-second-color: 139, 92, 246;    /* violet */
+  --gradient-third-color: 236, 72, 153;     /* pink */
+  --gradient-fourth-color: 251, 191, 119;   /* amber */
+  --gradient-pointer-color: 184, 161, 245;  /* lavender */
+  --gradient-size: 80%;
+  --gradient-blending: hard-light;
+
   /* BORDERS */
   --color-hairline: rgba(255, 255, 255, 0.10);
   --color-line-strong: rgba(255, 255, 255, 0.16);
@@ -208,4 +238,59 @@
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+/* Aurora Background animation (Phase 8.3.C) — slow swirl, no comet streaks */
+@keyframes aurora {
+  from {
+    background-position: 50% 50%, 50% 50%;
+  }
+  to {
+    background-position: 350% 50%, 350% 50%;
+  }
+}
+
+.animate-aurora {
+  animation: aurora 60s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-aurora {
+    animation: none;
+  }
+}
+
+/* Background Gradient Animation keyframes (Phase 8.3.C.2) */
+@keyframes move-in-circle {
+  0%   { transform: rotate(0deg); }
+  50%  { transform: rotate(180deg); }
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes move-vertical {
+  0%   { transform: translateY(-50%); }
+  50%  { transform: translateY(50%); }
+  100% { transform: translateY(-50%); }
+}
+
+@keyframes move-horizontal {
+  0%   { transform: translateX(-50%) translateY(-10%); }
+  50%  { transform: translateX(50%) translateY(10%); }
+  100% { transform: translateX(-50%) translateY(-10%); }
+}
+
+.gradient-animate-first   { animation: move-vertical 30s ease infinite; }
+.gradient-animate-second  { animation: move-in-circle 20s reverse infinite; }
+.gradient-animate-third   { animation: move-in-circle 40s linear infinite; }
+.gradient-animate-fourth  { animation: move-horizontal 40s ease infinite; }
+.gradient-animate-pointer { animation: move-in-circle 40s ease infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .gradient-animate-first,
+  .gradient-animate-second,
+  .gradient-animate-third,
+  .gradient-animate-fourth,
+  .gradient-animate-pointer {
+    animation: none;
+  }
 }

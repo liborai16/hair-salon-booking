@@ -1,36 +1,35 @@
-import { Link, Outlet } from "react-router-dom";
+import { Outlet } from "react-router-dom";
+import { IconHome, IconCalendar, IconShield } from "@tabler/icons-react";
+import FloatingDock from "@/components/ui/aceternity/floating-dock";
+import type { FloatingDockItem } from "@/components/ui/aceternity/floating-dock";
+import { useAuth } from "@/lib/auth";
 
 /**
  * Shared shell: top nav + main slot + footer. Mobile-first, modern luxe
  * theme — white surface, charcoal text, champagne accent on hover.
  */
 export function Layout() {
+  const auth = useAuth();
+
+  const dockItems: FloatingDockItem[] = [
+    { title: "Domů", href: "/", icon: <IconHome stroke={1.5} /> },
+    {
+      title: "Rezervovat",
+      href: "/book",
+      icon: <IconCalendar stroke={1.5} />,
+    },
+  ];
+  if (auth.status === "authenticated") {
+    dockItems.push({
+      title: "Admin",
+      href: "/admin",
+      icon: <IconShield stroke={1.5} />,
+    });
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-bg text-fg">
-      <header className="border-b border-hairline bg-bg sticky top-0 z-30 backdrop-blur supports-[backdrop-filter]:bg-bg/85">
-        <div className="container mx-auto max-w-6xl px-4 py-5 flex items-center justify-between">
-          <Link
-            to="/"
-            className="font-display text-2xl font-medium tracking-tight"
-          >
-            Salon Krásná
-          </Link>
-          <nav className="flex items-center gap-1 text-sm">
-            <Link
-              to="/book"
-              className="inline-flex items-center px-3 min-h-[44px] rounded-md hover:text-accent-strong transition"
-            >
-              Rezervovat
-            </Link>
-            <Link
-              to="/admin"
-              className="inline-flex items-center px-3 min-h-[44px] rounded-md text-muted hover:text-fg transition"
-            >
-              Admin
-            </Link>
-          </nav>
-        </div>
-      </header>
+      <FloatingDock items={dockItems} />
       <main className="flex-1">
         <Outlet />
       </main>
