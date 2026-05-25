@@ -1,5 +1,10 @@
 import { Link } from "react-router-dom";
 import BackgroundGradientAnimation from "@/components/ui/aceternity/background-gradient-animation";
+import {
+  CardBody,
+  CardContainer,
+  CardItem,
+} from "@/components/ui/aceternity/3d-card";
 import { cn } from "@/lib/cn";
 
 /**
@@ -120,56 +125,58 @@ function Section3Services() {
           Co pro vás <span className="italic text-[var(--color-accent)]">uděláme</span>.
         </h2>
 
-        {/* TODO Phase 8.3.D: Replace placeholder ServiceCards with 3D Card Effect + Wobble Card */}
-        <div className="relative h-[400px] md:h-[500px]">
-          <ServiceCard
-            title="Stříhání"
-            className="absolute top-0 left-0 w-[55%] h-[260px] md:h-[320px]"
-          />
-          <ServiceCard
-            title="Barvení"
-            className="absolute top-[40px] right-0 w-[40%] h-[220px] md:h-[280px]"
-          />
-          <ServiceCard
-            title="Foukaná"
-            className="absolute bottom-0 left-[20%] w-[50%] h-[200px] md:h-[260px]"
-          />
-          <ServiceCard
-            title="Dětský střih"
-            subtle
-            className="absolute bottom-[30px] right-[5%] w-[35%] h-[180px] md:h-[220px]"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-8 md:mt-12">
+          <div className="md:h-[340px] h-[220px]">
+            <ServiceCard3D title="Stříhání" eyebrow="01" />
+          </div>
+          <div className="md:h-[340px] h-[220px]">
+            <ServiceCard3D title="Barvení" eyebrow="02" />
+          </div>
+          <div className="md:h-[280px] h-[200px]">
+            <ServiceCard3D title="Foukaná" eyebrow="03" />
+          </div>
+          <div className="md:h-[280px] h-[200px]">
+            <ServiceCard3D title="Dětský střih" eyebrow="04" />
+          </div>
         </div>
       </div>
     </section>
   );
 }
 
-function ServiceCard({
+function ServiceCard3D({
   title,
-  subtle,
-  className,
+  eyebrow,
 }: {
   title: string;
-  subtle?: boolean;
-  className?: string;
+  eyebrow: string;
 }) {
   return (
-    <div
-      className={cn(
-        "rounded-2xl md:rounded-3xl backdrop-blur-xl border flex items-end p-6 md:p-8",
-        subtle
-          ? "bg-white/[0.02] border-white/[0.05]"
-          : "bg-white/[0.04] border-white/[0.08]",
-        "shadow-[0_20px_60px_rgba(0,0,0,0.3)]",
-        "hover:bg-white/[0.06] hover:border-[var(--color-accent)]/30 transition-colors",
-        className,
-      )}
-    >
-      <h3 className="font-display text-[clamp(24px,3vw,40px)] font-medium tracking-tight">
-        {title}
-      </h3>
-    </div>
+    <CardContainer containerClassName="!py-0 h-full" className="h-full w-full">
+      <CardBody
+        className={cn(
+          "h-full w-full rounded-2xl md:rounded-3xl",
+          "bg-white/[0.04] backdrop-blur-xl border border-white/[0.08]",
+          "shadow-[0_20px_60px_rgba(0,0,0,0.3)]",
+          "hover:bg-white/[0.06] hover:border-[var(--color-accent)]/30 transition-colors",
+          "p-6 md:p-8 flex flex-col justify-end",
+        )}
+      >
+        <CardItem
+          translateZ={20}
+          className="text-xs uppercase tracking-[0.2em] text-white/40 mb-2"
+        >
+          {eyebrow}
+        </CardItem>
+        <CardItem
+          as="h3"
+          translateZ={50}
+          className="font-display text-[clamp(24px,3vw,40px)] font-medium tracking-tight"
+        >
+          {title}
+        </CardItem>
+      </CardBody>
+    </CardContainer>
   );
 }
 
