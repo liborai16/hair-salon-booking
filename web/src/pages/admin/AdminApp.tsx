@@ -6,6 +6,7 @@ import { DailySchedule } from "./DailySchedule";
 import { AdminWalkIn } from "./AdminWalkIn";
 import { StylistsPage } from "./StylistsPage";
 import { ServicesPage } from "./ServicesPage";
+import { ReportsPage } from "./ReportsPage";
 
 /**
  * Admin routing — nested under `/admin/*` from App.tsx.
@@ -19,19 +20,9 @@ import { ServicesPage } from "./ServicesPage";
  * sidebar additionally hides owner-only links from non-owners (UX +
  * defense-in-depth, but rules are the actual gate).
  *
- * Phase 3.1 ships login + layout + protected routing; child pages are
- * placeholders. Dashboard (Phase 3.2), walk-in (3.3), CRUD (3.4),
- * reports (3.5) replace them.
+ * Reports is currently an editorial empty-state page (Phase 8.5.1) —
+ * backend data layer ready, UI aggregation deferred per scope.
  */
-function Placeholder({ name, hint }: { name: string; hint: string }) {
-  return (
-    <div>
-      <h1 className="text-2xl font-semibold mb-4">{name}</h1>
-      <p className="text-stone-500">{hint}</p>
-    </div>
-  );
-}
-
 export function AdminApp() {
   return (
     <Routes>
@@ -66,10 +57,7 @@ export function AdminApp() {
           path="reports"
           element={
             <RequireAuth requireRole="owner">
-              <Placeholder
-                name="Přehledy"
-                hint="Přehledy jsou v přípravě (Phase 3.5)."
-              />
+              <ReportsPage />
             </RequireAuth>
           }
         />
