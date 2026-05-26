@@ -1,5 +1,6 @@
 import { computeTotalDuration, LEVEL_MULTIPLIER } from "@hsb/shared";
 import type { Service, ServiceCategory, ServiceLengthMap } from "@hsb/shared";
+import { cn } from "@/lib/cn";
 
 const CATEGORY_LABELS: Record<ServiceCategory, string> = {
   strihani: "Stříhání",
@@ -59,16 +60,24 @@ export function ServiceStep({
         Kombinujte podle libosti. Cena se přepočítá podle vybraného kadeřníka.
       </p>
 
-      <div className="space-y-10">
+      <div className="space-y-12 md:space-y-16">
         {Array.from(grouped.entries()).map(([cat, list]) => (
           <section key={cat}>
-            <div className="flex items-baseline justify-between mb-4">
-              <h2 className="label-mono">{CATEGORY_LABELS[cat]}</h2>
-              <span className="label-mono text-muted">
-                {list.length} {list.length === 1 ? "služba" : "služby"}
-              </span>
+            <div className="mb-8 md:mb-10">
+              <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]/70 mb-2">
+                {list.length}{" "}
+                {list.length === 1
+                  ? "služba"
+                  : list.length < 5
+                    ? "služby"
+                    : "služeb"}
+              </div>
+              <h2 className="font-display text-2xl md:text-3xl tracking-tight">
+                {CATEGORY_LABELS[cat]}
+              </h2>
+              <div className="h-px bg-white/10 mt-4" />
             </div>
-            <div className="grid sm:grid-cols-2 gap-3">
+            <div className="grid sm:grid-cols-2 gap-4 md:gap-5">
               {list.map((svc) => (
                 <ServiceCard
                   key={svc.id}
@@ -113,11 +122,13 @@ function ServiceCard({
 
   return (
     <div
-      className={
+      className={cn(
+        "w-full text-left p-5 md:p-6 rounded-2xl transition-all duration-300 cursor-pointer",
+        "border backdrop-blur-xl",
         selected
-          ? "border-2 border-fg bg-bg-soft rounded-lg p-5 transition cursor-pointer"
-          : "border border-hairline hover:border-fg rounded-lg p-5 transition cursor-pointer"
-      }
+          ? "border-[var(--color-accent)] bg-[var(--color-accent)]/[0.04] shadow-[0_0_30px_rgba(212,165,116,0.15)]"
+          : "border-white/[0.08] bg-white/[0.02] hover:border-[var(--color-accent)]/40 hover:bg-white/[0.04]",
+      )}
       onClick={onToggle}
       role="button"
       tabIndex={0}
@@ -136,7 +147,7 @@ function ServiceCard({
           <div className="mt-1 label-mono">{svc.durationMinutes} min</div>
         </div>
         <div className="text-right shrink-0">
-          <div className="font-display text-xl md:text-2xl font-medium tracking-tight">
+          <div className="font-display text-xl md:text-2xl font-medium tracking-tight text-[var(--color-accent)] tabular-nums">
             {usesLength
               ? svc.lengthVariants![activeLen]
               : svc.basePrice}{" "}
@@ -144,7 +155,7 @@ function ServiceCard({
           </div>
           {selected && (
             <div
-              className="mt-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-fg text-surface-fg text-[10px] font-bold"
+              className="mt-1.5 inline-flex items-center justify-center w-5 h-5 rounded-full bg-[var(--color-accent)] text-[var(--color-bg-base)] text-[10px] font-bold"
               aria-hidden
             >
               ✓
@@ -155,11 +166,11 @@ function ServiceCard({
 
       {selected && usesLength && (
         <div
-          className="mt-4 pt-4 border-t border-hairline"
+          className="mt-5 pt-5 border-t border-white/10"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="label-mono mb-2">Délka vlasů</div>
-          <div className="grid grid-cols-3 gap-1 p-1 bg-bg rounded-md border border-hairline">
+          <div className="label-mono mb-3">Délka vlasů</div>
+          <div className="grid grid-cols-3 gap-1 p-1 bg-black/30 rounded-full border border-white/10">
             {(["short", "medium", "long"] as const).map((len) => {
               const active = activeLen === len;
               return (
@@ -167,11 +178,12 @@ function ServiceCard({
                   key={len}
                   type="button"
                   onClick={() => onSetLength(len)}
-                  className={
+                  className={cn(
+                    "text-xs font-medium py-2.5 rounded-full transition min-h-[44px]",
                     active
-                      ? "text-xs font-medium py-2.5 rounded bg-fg text-surface-fg transition min-h-[44px]"
-                      : "text-xs font-medium py-2.5 rounded text-muted hover:text-fg transition min-h-[44px]"
-                  }
+                      ? "bg-[var(--color-accent)] text-[var(--color-bg-base)]"
+                      : "text-white/60 hover:text-white",
+                  )}
                 >
                   {LENGTH_LABELS[len]}
                   <span className="block text-[10px] opacity-70 mt-0.5">
