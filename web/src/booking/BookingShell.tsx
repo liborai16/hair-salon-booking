@@ -10,6 +10,7 @@ import { SlotStep } from "./steps/SlotStep";
 import { CustomerStep } from "./steps/CustomerStep";
 import { ConfirmStep } from "./steps/ConfirmStep";
 import { SuccessStep } from "./steps/SuccessStep";
+import { cn } from "@/lib/cn";
 
 /**
  * Booking flow orchestrator — useReducer-driven state machine over 4 steps:
@@ -50,7 +51,7 @@ export function BookingShell({
   return (
     <div>
       {showProgress && currentIdx >= 0 && (
-        <StepProgress current={currentIdx} total={stepOrder.length} />
+        <StepProgress current={currentIdx} />
       )}
       {(() => {
         switch (state.step) {
@@ -151,33 +152,67 @@ export function BookingShell({
   );
 }
 
-const STEP_LABELS = ["Služby", "Termín", "Údaje", "Potvrzení"];
+const STEPS = [
+  { key: "services", label: "Služba" },
+  { key: "slot", label: "Termín" },
+  { key: "customer", label: "Kontakt" },
+  { key: "confirm", label: "Potvrzení" },
+];
 
-function StepProgress({ current, total }: { current: number; total: number }) {
+function StepProgress({ current }: { current: number }) {
   return (
-    <div className="mb-8 md:mb-10">
-      <div className="flex items-center gap-3" aria-hidden>
-        {Array.from({ length: total }, (_, i) => {
+    <div className="mb-10 md:mb-14">
+      <div className="flex items-center justify-center gap-1 md:gap-2">
+        {STEPS.map((step, i) => {
+          const completed = i < current;
           const active = i === current;
-          const done = i < current;
           return (
-            <div key={i} className="flex-1 flex items-center gap-3">
+            <div key={step.key} className="flex items-center gap-1 md:gap-2">
               <div
-                className={`h-1 flex-1 rounded-pill transition-colors ${
-                  done || active ? "bg-fg" : "bg-hairline"
-                }`}
-              />
-              {i === total - 1 && (
-                <span className="label-mono text-fg">
-                  {current + 1} / {total}
+                className={cn(
+                  "flex items-center gap-2 px-2 md:px-3 py-1.5 rounded-full transition-all duration-300",
+                  active &&
+                    "bg-[var(--color-accent)]/10 border border-[var(--color-accent)]/50 shadow-[0_0_20px_rgba(212,165,116,0.2)]",
+                  completed &&
+                    "bg-[var(--color-accent)]/[0.06] border border-[var(--color-accent)]/30",
+                  !active && !completed && "border border-white/10",
+                )}
+              >
+                <div
+                  className={cn(
+                    "w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium transition-colors",
+                    (active || completed) &&
+                      "bg-[var(--color-accent)] text-[var(--color-bg-base)]",
+                    !active &&
+                      !completed &&
+                      "border border-white/20 text-white/40",
+                  )}
+                >
+                  {completed ? "✓" : i + 1}
+                </div>
+                <span
+                  className={cn(
+                    "hidden md:inline text-xs uppercase tracking-[0.15em] transition-colors",
+                    active && "text-[var(--color-accent-bright)]",
+                    completed && "text-white/60",
+                    !active && !completed && "text-white/30",
+                  )}
+                >
+                  {step.label}
                 </span>
+              </div>
+
+              {i < STEPS.length - 1 && (
+                <div
+                  className={cn(
+                    "h-px w-3 md:w-8 transition-colors",
+                    completed ? "bg-[var(--color-accent)]/40" : "bg-white/10",
+                  )}
+                />
               )}
             </div>
           );
         })}
-      </div>
-      <div className="mt-2 label-mono">
-        Krok {current + 1}: {STEP_LABELS[current]}
       </div>
     </div>
   );
