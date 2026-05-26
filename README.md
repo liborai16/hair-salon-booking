@@ -88,6 +88,29 @@ web/src/
     └── useDailyBookings.ts — schedule data + status transitions
 ```
 
+### Design system (Phase 8 — Gold Luxury)
+
+Veřejný surface (Landing + booking) běží na vlastním Tailwind 4 design systému postaveném nad `@theme` + `@utility` direktivami v [`web/src/index.css`](web/src/index.css):
+
+**Paleta:** warm gold `rgb(212, 165, 116)` accent + deep amber `rgb(184, 134, 76)` + champagne `rgb(229, 195, 137)` na warm-cocoa základu (`rgb(13, 9, 5)`); cream tones pro text (`rgb(245, 235, 216)` + alpha-modulated muted variants). Status colors (success/warning/danger) zachovány jako funkční sémantika.
+
+**Utility surface (single-source-of-truth designu):**
+- `btn-primary` — gradient pill (gold → deep-amber), 44px min touch target, `box-shadow` gold glow, scale-on-hover transition
+- `btn-primary-hover` — hover/active/disabled states (Tailwind v4 `&:hover:not(:disabled)` nesting)
+- `btn-ghost` — secondary glass-surface ghost variant
+- `glass-card` — `backdrop-blur-xl` + hairline border + inset light + drop shadow
+- `italic-accent` — champagne italic + dark text-shadow halo pro display headings (kompenzuje gradient blob contrast)
+- `label-mono` — mono uppercase tracking helper
+- `@keyframes success-pop` + `animate-success-pop` — celebration entrance pro success state
+
+**Component layer** (Aceternity-derived, hand-built v `web/src/components/ui/`):
+- **PremiumNav** — floating glass pill nav, route-aware (anchor links na Landing, page links jinde), IntersectionObserver active section tracking, mobile hamburger + full-screen drawer overlay
+- **BackgroundGradientAnimation** — 4 animated blob mesh s SVG goo filter, mix-blend hard-light, refs-only animation loop (no per-frame re-renders), optional mouse-follow
+- **3D Card Effect** — perspective-based hover tilt s `transform-style: preserve-3d`, polymorphic CardItem children (translateX/Y/Z + rotateX/Y/Z props)
+- 5 dalších Aceternity-derived komponent v repu (FloatingDock, AuroraBackground, Spotlight, WobbleCard, SecondaryNav) — vyrenderovány v rámci design experimentů Phase 8.2-8.3, ponechány jako budoucí stavební kameny (unimported v live UI, ale typed + tested patterns)
+
+**Rationale:** Tailwind 4 `@theme` umožňuje deklarativní design tokens které automaticky generují utility třídy (`--color-accent` → `bg-accent`, `text-accent`, atd.). `@utility` direktiva definuje custom semantic utilities s nested pseudoselektory (`&:hover`, `&:disabled`). Tento přístup poskytuje single-source-of-truth pro palette swap (Phase 8.4.1: lavender → gold byla 1 commit změna tokenů v `index.css` + 2 inline gradient refs v Landing). Component layer je hand-built nad těmito utilities, aby zůstal version-independent na Aceternity registru (Aceternity Pro vyžaduje placený přístup; naše komponenty jsou conceptually-derived, ne copy-paste).
+
 ---
 
 ## 3. Jak spustit lokálně
@@ -300,6 +323,13 @@ V přibližném pořadí přínosu:
 - **App Check** — anti-bot pro veřejný booking endpoint.
 - **Walk-in GDPR checkbox** — current admin flow vyžaduje checkbox (zděděné z public flow); recepční vyplňuje za klienta, kde verbální souhlas po telefonu je real-world authority. UX polish: admin context skipne checkbox + zaznamená „verbal consent".
 
+**Phase 8 design evolution items (deferováno z Gold Luxury rebrand):**
+- **Phase 8.4.2 typography** — Cormorant Garamond serif headlines pro Hero / CTA Finale (kombinace Inter sans + display serif zvedne premium feel; současný stav je `font-display: Inter` univerzálně).
+- **Phase 8.4.3-4 ikony** — Tabler icon set pro USP cards, services category badges, contact rows. Zlepší skennability, zachovává minimalistic vibe (1.5px stroke pattern).
+- **Admin UI Gold rebrand** — current admin používá Phase 5 modern-luxe palette (stone-50 sidebar, ne Gold). Public + booking je Gold Luxury, admin zůstal mimo scope Phase 8 (separate dedicated phase, většinou tabular CRUD — Gold by se aplikoval na primary actions + status badges).
+- **Booking flow micro-animations** — Phase 8.3.G.3 přidalo `animate-success-pop` na ✓ chip. Další candidates: stylist avatar hover scale, step transition fade-in mezi BookingShell switch case.
+- **A11y audit** — current state má touch targets, ARIA landmarks, `prefers-reduced-motion` na CSS animations (`@media (prefers-reduced-motion: reduce)`). Plný WCAG AAA pass (keyboard nav, screen reader test, color contrast verification) deferováno.
+
 ---
 
 ## 8. Co bych v produkci udělal jinak
@@ -350,17 +380,21 @@ Cloud Functions handlery (`createBooking` + `manageBookingByToken`) i `seed.mjs`
 
 Viz [`CLAUDE.md §5`](CLAUDE.md). Žádný blocker — všechno funguje. Cleanup candidates pro produkční verzi (viz §8).
 
-### 9.5 JS bundle 650kb
+### 9.5 JS bundle ~715kB
 
-Build warning „Some chunks are larger than 500kB after minification". Cause: Firebase SDK (~400kb) dominantní. Žádný code-split nakonfigurován. Code-split candidate pro Day 6 polish (viz §7).
+Build warning „Some chunks are larger than 500kB after minification". Cause: Firebase SDK (~400kB) + framer-motion (~120kB) + Aceternity-derived komponenty (~50kB) dominantní. Žádný code-split nakonfigurován. Lazy chunks pro admin UI by snížily initial public-flow load o ~150kB. Code-split candidate pro budoucí cycle (viz §7).
 
-### 9.6 Default Vite `<title>` v `web/index.html`
-
-Drobnost — index.html title zůstal `Vite + React + TS` z Day 1 scaffold. Polish item.
-
-### 9.7 Phase 3.5 reports — deferred
+### 9.6 Phase 3.5 reports — deferred
 
 Admin sidebar má "Přehledy" link, ale stránka je placeholder. Backend data připravená (bookings + customerProfiles), UI agregace deferred.
+
+### 9.7 SuccessStep H1 wraps na mobile
+
+Phase 8.3.H mobile audit identifikoval: `<h1 className="font-display tracking-tight text-[clamp(40px,8vw,80px)] leading-[1.05]">` v SuccessStep wrapuje "Rezervace potvrzena." na 2 řádky při 375px (clamp floor 40px × ~20 znaků ≈ 440-460px text > 343px usable). Italic-accent „potvrzena" sedí samostatně na řádku 2. **Přijato jako cinematic effect** (stacked headline reads premium). Mitigation: lower clamp floor na 32px pro one-line fit — defer per scope (řešitelné jednou className edit).
+
+### 9.8 Admin UI Modern Luxe (ne Gold)
+
+Admin sidebar + pages používají Phase 5 modern-luxe palette (`stone-50` bg + neutral borders), zatímco public + booking Gold Luxury. Admin nebyl ve scope Phase 8 rebrand. Brand inconsistency je vědomá — admin je internal-only surface, primary deliverable je veřejný booking flow. Future Phase 8.5 admin rebrand viz §7.
 
 ---
 
@@ -386,14 +420,70 @@ Při interview rád projdu kteroukoli část a obhájím, **proč** je tak, jak 
 
 ## 12. Feedback PR „kdyby přišel feedback"
 
-Plánovaný refaktor: **lift BookingView + ManageInput callable-contract types z `functions/src/handlers/manageBookingByToken.ts` do `@hsb/shared/callable-contracts.ts`**, plus stejně **OCCUPYING_STATUSES** ze 3 instancí (functions + shared + web) na jeden zdroj v `@hsb/shared`.
+Plánovaný refaktor: **extrakce Gold Luxury design systému do nového workspace package `@hsb/ui`**.
 
-Důvod této volby (před ostatními debt-itemy v §8):
-1. **Single source of contract** mezi server (functions) a client (web) eliminuje silent drift při budoucích API změnách.
-2. **Konzistence s phoneHash D5 lift** (commit `5418ba7`) — stejný pattern (mechanical extraction pod test safety net) prokázal hodnotu single source.
-3. **Low risk** — pure type/const motion, žádný behavioral change, ověřitelné přes 57 shared tests + tsc.
+### Co
 
-Detailní PR popis — viz [`docs/PR_DRAFT.md`](docs/PR_DRAFT.md) (motivace + scope + implementation plan + risk assessment + alternatives considered + long-term context).
+Současný design system (Phase 8 — viz §2) žije v [`web/src/index.css`](web/src/index.css) (palette `@theme` tokens, `glass-card`, `italic-accent`, `btn-primary` gradient pill, `animate-success-pop`, atd.) + 8 Aceternity-derived komponent v [`web/src/components/ui/`](web/src/components/ui/). Phase 8.4 iterace přidaly significant token surface mentálně duplikovaný napříč komponentami (gradient barvy hardcoded v Hero CTA + CTA Finale; PremiumNav lavender→gold swap byl 1 token + 2 inline refs).
+
+Refaktor lift do dedikovaného `packages/ui/` workspace:
+
+```
+packages/ui/
+├── src/
+│   ├── tokens/
+│   │   ├── colors.css          — @theme palette (gold + cream + status)
+│   │   ├── typography.css      — @theme font + radius
+│   │   └── motion.css          — @keyframes + animation utilities
+│   ├── utilities/
+│   │   ├── buttons.css         — @utility btn-primary + btn-ghost
+│   │   ├── glass.css           — @utility glass-card
+│   │   └── accents.css         — @utility italic-accent + label-mono
+│   ├── components/
+│   │   ├── PremiumNav.tsx
+│   │   ├── BackgroundGradientAnimation.tsx
+│   │   ├── ThreeDCard.tsx
+│   │   └── ...
+│   └── index.ts                — re-export public surface
+├── package.json                — name: "@hsb/ui"
+└── tsconfig.json
+```
+
+`web/` consumes via `@hsb/ui/styles.css` import + `import { PremiumNav, ThreeDCard } from "@hsb/ui"`.
+
+### Proč
+
+1. **Cross-app reuse** — admin standalone surface nebo budoucí marketing repo můžou consumovat stejný design system bez kopírování. Phase 8.5 admin Gold rebrand (§7) by importoval `@hsb/ui` místo duplikování token swapů.
+2. **Design system dokumentace** — Storybook v `packages/ui/` poskytne canonical component preview + token reference. Současný stav: design pattern catalog žije v README §2 + commit messages, ne v interactive playground.
+3. **Versioning** — design změny dostanou explicit semver bumps. Phase 8.4.1 palette swap by byl `@hsb/ui` `2.0.0` major; Phase 8.4.1.1 italic-accent contrast fix by byl `2.0.1` patch. Konzistentní s `@hsb/shared` precedentem (workspace package, ne npm publish, ale clear ownership boundary).
+4. **Type safety pro design tokens** — token names jako TS enum (`type AccentColor = "accent" | "accent-deep" | "accent-bright"`) by chytily typos compile-time. Současný stav: `text-[var(--color-accent-deep)]` je arbitrary value bez TS validation.
+
+### Jak (high-level implementation plan)
+
+1. Vytvořit `packages/ui/` workspace + npm workspace registration v root `package.json`.
+2. Move `@theme` block z `web/src/index.css` → `packages/ui/src/tokens/colors.css` (+ typography, motion).
+3. Move `@utility` definitions → `packages/ui/src/utilities/*.css`.
+4. Move 8 Aceternity-derived komponent z `web/src/components/ui/` → `packages/ui/src/components/`. Update imports v `web/` z relative na `@hsb/ui` namespace.
+5. `web/src/index.css` redukováno na `@import "@hsb/ui/styles.css"` + page-specific overrides.
+6. Add Storybook v `packages/ui/` (Vite-based, parallel to web dev server).
+7. Document design tokens via `packages/ui/README.md` (palette swatches, utility reference, component API).
+
+### Risk + effort
+
+**Effort:** ~1-2 dny mechanická extrakce + monorepo wiring. Storybook setup ~3-4h dodatečně.
+
+**Risk:** Low. Tailwind v4 `@theme`/`@utility` mapuje cleanly přes file boundaries (CSS imports z node_modules workspace jsou Vite-native). `@hsb/shared` precedent existuje — workspace package + esbuild bundle pro Cloud Functions deploy (D-015) — `@hsb/ui` follow-uje stejný pattern bez nutnosti server-side bundling (čistě client-side consume).
+
+**Alternative considered:** publishout `@hsb/ui` na npm registry → over-engineering pro single-project case study; workspace package je sufficient.
+
+### Bonus: paralelní debt-itemy
+
+Při ride-along by se dořešily i menší cleanup položky z §8 a CLAUDE.md §5:
+- BookingView + ManageInput callable-contract types lift (functions ↔ web duplikace)
+- `OCCUPYING_STATUSES` cross-module duplication (functions + shared + web = 3 instances)
+- D1-D5 architectural debt items
+
+Detailní PR popis — viz [`docs/PR_DRAFT.md`](docs/PR_DRAFT.md) (motivace + scope + implementation plan + risk assessment + alternatives considered + long-term context). *Pozn.: PR_DRAFT.md currently popisuje předchozí BookingView lift proposal — pre-Phase 8. Designsystem extraction by byl natural successor (větší scope, mainline impact).*
 
 ---
 
