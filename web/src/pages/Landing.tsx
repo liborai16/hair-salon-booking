@@ -173,7 +173,7 @@ function Section1Hero() {
           <span className="block text-[clamp(42px,10vw,80px)] md:text-[clamp(56px,12vw,160px)]">
             Vlasy, kterým budete
           </span>
-          <span className="block text-[clamp(42px,10vw,80px)] md:text-[clamp(56px,12vw,160px)] italic text-[var(--color-accent)] mt-2">
+          <span className="block text-[clamp(42px,10vw,80px)] md:text-[clamp(56px,12vw,160px)] italic-accent mt-2">
             věřit<span className="text-white">.</span>
           </span>
         </h1>
@@ -225,7 +225,7 @@ function Section2Trust() {
         </div>
         <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-8 md:mb-12 max-w-4xl">
           Studio, kde{" "}
-          <span className="italic text-[var(--color-accent)]">
+          <span className="italic-accent">
             nepospícháme
           </span>
           .
@@ -285,7 +285,7 @@ function Section3Services() {
           Naše služby
         </div>
         <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-24">
-          Co pro vás <span className="italic text-[var(--color-accent)]">uděláme</span>.
+          Co pro vás <span className="italic-accent">uděláme</span>.
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10 mt-6 md:mt-12">
@@ -354,7 +354,7 @@ function Section4HowItWorks() {
           Jak to funguje
         </div>
         <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-24">
-          Tři kroky k <span className="italic text-[var(--color-accent)]">termínu</span>.
+          Tři kroky k <span className="italic-accent">termínu</span>.
         </h2>
 
         {/* TODO Phase 8.3.E: Add Tracing Beam + Timeline component */}
@@ -418,7 +418,7 @@ function Section5Tym() {
         </div>
         <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-6 max-w-4xl">
           Pět rukou,{" "}
-          <span className="italic text-[var(--color-accent)]">
+          <span className="italic-accent">
             pět příběhů
           </span>
           .
@@ -483,7 +483,7 @@ function Section6Cenik() {
           Ceník
         </div>
         <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-6 max-w-4xl">
-          Co <span className="italic text-[var(--color-accent)]">nabízíme</span>.
+          Co <span className="italic-accent">nabízíme</span>.
         </h2>
         <p className="text-white/70 text-lg md:text-xl leading-relaxed max-w-2xl mb-16 md:mb-20">
           U barvení záleží cena na délce vlasů — uvidíte ji při výběru v
@@ -546,7 +546,7 @@ function Section7Reference() {
           Reference
         </div>
         <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-20 max-w-4xl">
-          Co o nás <span className="italic text-[var(--color-accent)]">říkají</span>.
+          Co o nás <span className="italic-accent">říkají</span>.
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
           {TESTIMONIALS.map((t, i) => (
@@ -597,7 +597,7 @@ function Section8Kontakt() {
         </div>
         <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-20 max-w-4xl">
           Najdete nás{" "}
-          <span className="italic text-[var(--color-accent)]">v Praze</span>.
+          <span className="italic-accent">v Praze</span>.
         </h2>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-start">
@@ -686,7 +686,7 @@ function Section9CTAFinale() {
       <div className="relative z-10 container mx-auto max-w-4xl px-6 md:px-12 text-center">
         <h2 className="font-display font-medium tracking-tight leading-[0.95] text-[clamp(56px,11vw,140px)]">
           Pojďme to
-          <span className="block italic text-[var(--color-accent)] mt-2">
+          <span className="block italic-accent mt-2">
             udělat.
           </span>
         </h2>

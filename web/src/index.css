@@ -245,6 +245,16 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
+/* Italic accent (Phase 8.4.1.1) — champagne color + dark halo for heading
+   accent words readable on bright gold gradient blobs. */
+@utility italic-accent {
+  font-style: italic;
+  color: var(--color-accent-bright);
+  text-shadow:
+    0 0 40px rgba(13, 9, 5, 0.7),
+    0 4px 16px rgba(13, 9, 5, 0.4);
+}
+
 /* Aurora Background animation (Phase 8.3.C) — slow swirl, no comet streaks */
 @keyframes aurora {
   from {
