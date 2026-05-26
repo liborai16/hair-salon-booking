@@ -147,14 +147,7 @@ export function CustomerStep({ initial, onSubmit, onPrev }: Props) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className={cn(
-              "px-8 py-3 rounded-full font-medium transition-all duration-300",
-              "bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-deep)]",
-              "text-[var(--color-bg-base)]",
-              "shadow-[0_10px_30px_rgba(212,165,116,0.3)]",
-              "hover:scale-105",
-              "disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed",
-            )}
+            className="btn-primary btn-primary-hover"
           >
             Pokračovat →
           </button>

@@ -172,30 +172,36 @@
   }
 }
 
+/* Phase 8.3.G.2.D: premium gradient pill (was flat gold solid in 8.4.1). */
 @utility btn-primary {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: var(--color-accent);
+  gap: 0.5rem;
+  padding: 0.75rem 2rem;
+  border-radius: 9999px;
+  font-weight: 500;
+  font-size: 0.95rem;
   color: var(--color-bg-base);
-  padding: 1rem 2rem;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  font-size: 0.9375rem;
-  letter-spacing: -0.005em;
-  transition: all 250ms cubic-bezier(0.4, 0, 0.2, 1);
-  min-height: 52px;
-  box-shadow: 0 4px 24px var(--color-accent-soft);
+  background: linear-gradient(
+    to right,
+    var(--color-accent),
+    var(--color-accent-deep)
+  );
+  box-shadow: 0 10px 30px rgba(212, 165, 116, 0.3);
+  transition: all 0.3s ease;
+  cursor: pointer;
+  border: none;
+  min-height: 44px;
 }
 
 @utility btn-primary-hover {
-  &:hover {
-    background: var(--color-accent-strong);
-    box-shadow: 0 8px 32px var(--color-accent-glow);
-    transform: translateY(-1px);
+  &:hover:not(:disabled) {
+    transform: scale(1.05);
+    box-shadow: 0 12px 40px rgba(212, 165, 116, 0.4);
   }
-  &:active {
-    transform: translateY(0);
+  &:active:not(:disabled) {
+    transform: scale(1);
   }
   &:disabled {
     opacity: 0.4;
