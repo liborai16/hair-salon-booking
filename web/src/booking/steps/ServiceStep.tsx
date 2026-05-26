@@ -212,7 +212,7 @@ function StickyFooter({
 }) {
   return (
     <div className="sticky bottom-4 mt-8 mx-auto max-w-md backdrop-blur-xl bg-black/40 border border-white/10 rounded-2xl p-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)]">
-      <div className="container mx-auto max-w-3xl px-4 py-4 flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div className="min-w-0">
           <div className="label-mono mb-0.5 truncate">
             Vybráno {count} {count === 1 ? "služba" : count < 5 ? "služby" : "služeb"}
