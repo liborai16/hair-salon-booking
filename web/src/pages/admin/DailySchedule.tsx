@@ -23,10 +23,10 @@ const TOTAL_HEIGHT = (DAY_END_HOUR - DAY_START_HOUR) * PX_PER_HOUR;
 
 const STATUS_COLORS: Record<BookingStatus, string> = {
   pending: "bg-amber-100 border-amber-400 text-amber-900",
-  confirmed: "bg-stone-200 border-stone-500 text-stone-900",
+  confirmed: "bg-white/[0.08] border-white/30 text-white",
   completed: "bg-emerald-100 border-emerald-400 text-emerald-900",
   no_show: "bg-red-100 border-red-400 text-red-900",
-  cancelled: "bg-stone-50 border-stone-300 text-stone-400 line-through",
+  cancelled: "bg-white/[0.03] border-white/15 text-white/40 line-through",
 };
 
 const STATUS_LABELS: Record<BookingStatus, string> = {
@@ -74,28 +74,28 @@ export function DailySchedule() {
   const [drawerFor, setDrawerFor] = useState<DailyBooking | null>(null);
 
   if (!stylists || !services) {
-    return <div className="text-stone-500">Načítám…</div>;
+    return <div className="text-white/50">Načítám…</div>;
   }
   const servicesById = new Map(services.map((s) => [s.id, s]));
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-semibold">Rozvrh</h1>
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight text-white">Rozvrh</h1>
         <div className="flex items-center gap-3">
-          <label className="text-sm text-stone-600">
+          <label className="text-sm text-white/60">
             Datum:{" "}
             <input
               type="date"
               value={ymd}
               onChange={(e) => setYmd(e.target.value)}
-              className="border border-stone-300 rounded-md px-2 py-1 ml-1"
+              className="border border-white/15 rounded-md px-2 py-1 ml-1"
             />
           </label>
           <button
             type="button"
             onClick={() => setYmd(ymdToday())}
-            className="text-sm text-stone-600 hover:text-stone-900 px-3 py-1 border border-stone-300 rounded-md"
+            className="text-sm text-white/60 hover:text-white px-3 py-1 border border-white/15 rounded-md"
           >
             Dnes
           </button>
@@ -103,21 +103,21 @@ export function DailySchedule() {
       </div>
 
       {error && (
-        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+        <div className="mb-4 text-sm text-[var(--color-danger)] bg-[var(--color-danger)]/[0.05] border border-[var(--color-danger)]/30 rounded-xl p-3">
           {error}
         </div>
       )}
 
-      <div className="bg-white border border-stone-200 rounded-md overflow-auto">
+      <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl overflow-auto">
         <div className="flex" style={{ minWidth: `${100 + stylists.length * 160}px` }}>
           {/* Hours column */}
-          <div className="w-24 border-r border-stone-200 flex-shrink-0">
-            <div className="h-10 border-b border-stone-200" />
+          <div className="w-24 border-r border-white/10 flex-shrink-0">
+            <div className="h-10 border-b border-white/10" />
             <div className="relative" style={{ height: TOTAL_HEIGHT }}>
               {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR + 1 }, (_, i) => (
                 <div
                   key={i}
-                  className="absolute left-0 right-0 text-xs text-stone-500 px-2"
+                  className="absolute left-0 right-0 text-xs text-white/50 px-2"
                   style={{ top: i * PX_PER_HOUR - 6 }}
                 >
                   {String(DAY_START_HOUR + i).padStart(2, "0")}:00
@@ -173,8 +173,8 @@ function StylistColumn({
   loading: boolean;
 }) {
   return (
-    <div className="flex-1 min-w-[160px] border-r border-stone-200 last:border-r-0">
-      <div className="h-10 border-b border-stone-200 px-2 py-2 text-sm font-medium truncate">
+    <div className="flex-1 min-w-[160px] border-r border-white/10 last:border-r-0">
+      <div className="h-10 border-b border-white/10 px-2 py-2 text-sm font-medium truncate">
         {stylist.name}
       </div>
       <div className="relative" style={{ height: TOTAL_HEIGHT }}>
@@ -182,7 +182,7 @@ function StylistColumn({
         {Array.from({ length: DAY_END_HOUR - DAY_START_HOUR }, (_, i) => (
           <div
             key={i}
-            className="absolute left-0 right-0 border-t border-stone-100"
+            className="absolute left-0 right-0 border-t border-white/5"
             style={{ top: (i + 1) * PX_PER_HOUR }}
           />
         ))}
@@ -196,7 +196,7 @@ function StylistColumn({
           return (
             <div
               key={a.id}
-              className="absolute left-1 right-1 bg-stone-100 border border-dashed border-stone-300 text-xs text-stone-500 px-2 py-1 rounded"
+              className="absolute left-1 right-1 bg-white/[0.05] border border-dashed border-white/15 text-xs text-white/60 px-2 py-1 rounded"
               style={{
                 top: Math.max(0, top),
                 height: Math.min(TOTAL_HEIGHT - Math.max(0, top), height),
@@ -219,7 +219,7 @@ function StylistColumn({
         ))}
 
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center text-xs text-stone-400">
+          <div className="absolute inset-0 flex items-center justify-center text-xs text-white/40">
             Načítám…
           </div>
         )}
@@ -309,12 +309,12 @@ function BookingDrawer({
       onClick={onClose}
     >
       <div
-        className="bg-white rounded-md max-w-md w-full p-6 max-h-[90vh] overflow-y-auto"
+        className="bg-[var(--color-bg-base)] border border-white/10 backdrop-blur-xl rounded-2xl max-w-md w-full p-6 max-h-[90vh] overflow-y-auto shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-start justify-between mb-4">
           <div>
-            <div className="text-xs text-stone-500 uppercase tracking-wide">
+            <div className="text-xs text-white/50 uppercase tracking-wide">
               {STATUS_LABELS[b.status]}
             </div>
             <h2 className="text-lg font-semibold">
@@ -324,7 +324,7 @@ function BookingDrawer({
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-700 text-2xl leading-none"
+            className="text-white/40 hover:text-white/80 text-2xl leading-none"
             aria-label="Zavřít"
           >
             ×
@@ -333,18 +333,18 @@ function BookingDrawer({
 
         <div className="space-y-3 text-sm">
           <div>
-            <div className="text-xs text-stone-500 uppercase tracking-wide">
+            <div className="text-xs text-white/50 uppercase tracking-wide">
               Klient
             </div>
             <div className="font-medium">{customer?.name ?? "—"}</div>
             {customer && (
-              <div className="text-stone-600">
+              <div className="text-white/60">
                 {customer.phone} · {customer.email}
               </div>
             )}
           </div>
           <div>
-            <div className="text-xs text-stone-500 uppercase tracking-wide">
+            <div className="text-xs text-white/50 uppercase tracking-wide">
               Služby
             </div>
             <ul className="font-medium">
@@ -353,31 +353,31 @@ function BookingDrawer({
               ))}
             </ul>
           </div>
-          <div className="border-t border-stone-200 pt-2">
-            <div className="text-xs text-stone-500 uppercase tracking-wide">
+          <div className="border-t border-white/10 pt-2">
+            <div className="text-xs text-white/50 uppercase tracking-wide">
               Cena
             </div>
             <div className="font-medium">
               {b.totalPrice} Kč
               {b.paymentMethod && (
-                <span className="text-stone-500 ml-2">
+                <span className="text-white/50 ml-2">
                   ({b.paymentMethod})
                 </span>
               )}
             </div>
           </div>
-          <div className="text-xs text-stone-400">ID: {b.id}</div>
+          <div className="text-xs text-white/40">ID: {b.id}</div>
         </div>
 
         {error && (
-          <div className="mt-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+          <div className="mt-4 text-sm text-[var(--color-danger)] bg-[var(--color-danger)]/[0.05] border border-[var(--color-danger)]/30 rounded-xl p-3">
             {error}
           </div>
         )}
 
         {!isTerminal && (
           <div className="mt-6 space-y-2">
-            <div className="text-xs text-stone-500 uppercase tracking-wide">
+            <div className="text-xs text-white/50 uppercase tracking-wide">
               Akce
             </div>
             <PaymentCompleteSection
@@ -389,7 +389,7 @@ function BookingDrawer({
                 type="button"
                 disabled={busy}
                 onClick={() => runAction(() => markNoShow(b.id))}
-                className="flex-1 text-sm px-3 py-2 border border-red-300 text-red-700 rounded-md hover:bg-red-50 disabled:opacity-40"
+                className="flex-1 text-sm px-3 py-2 border border-red-500/40 text-red-300 rounded-md hover:bg-red-500/10 disabled:opacity-40 transition-colors"
               >
                 Nedostavil(a) se
               </button>
@@ -397,7 +397,7 @@ function BookingDrawer({
                 type="button"
                 disabled={busy}
                 onClick={() => runAction(() => cancelBooking(b.id))}
-                className="flex-1 text-sm px-3 py-2 border border-stone-300 text-stone-700 rounded-md hover:bg-stone-50 disabled:opacity-40"
+                className="flex-1 text-sm px-3 py-2 border border-white/15 text-white/80 rounded-md hover:bg-white/[0.04] disabled:opacity-40 transition-colors"
               >
                 Zrušit
               </button>
@@ -430,8 +430,8 @@ function PaymentCompleteSection({
     );
   }
   return (
-    <div className="border border-emerald-300 bg-emerald-50 rounded-md p-3">
-      <div className="text-xs text-emerald-800 mb-2">Platba:</div>
+    <div className="border border-emerald-500/40 bg-emerald-500/[0.08] rounded-md p-3">
+      <div className="text-xs text-emerald-300 mb-2">Platba:</div>
       <div className="flex gap-2">
         {(["cash", "card", "transfer"] as const).map((pm) => (
           <button

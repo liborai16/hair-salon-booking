@@ -17,8 +17,10 @@ import { BookingShell } from "../../booking/BookingShell";
 export function AdminWalkIn() {
   return (
     <div>
-      <h1 className="text-2xl font-semibold mb-1">Nová rezervace (walk-in)</h1>
-      <p className="text-sm text-stone-500 mb-6">
+      <h1 className="font-display text-2xl md:text-3xl tracking-tight mb-1 text-white">
+        Nová rezervace (walk-in)
+      </h1>
+      <p className="text-sm text-white/60 mb-6">
         Rezervace zadaná z administrace. Lead-time je přeskočen — můžete
         rezervovat ihned.
       </p>

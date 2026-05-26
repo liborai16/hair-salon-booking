@@ -2,6 +2,18 @@ import { useEffect, useState, type FormEvent } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { signIn, useAuth } from "../../lib/auth";
 
+const inputCls = [
+  "w-full mt-2 px-4 py-3 rounded-xl",
+  "bg-white/[0.03] backdrop-blur-xl",
+  "border border-white/10",
+  "text-white placeholder-white/30",
+  "transition-all duration-200",
+  "focus:outline-none focus:border-[var(--color-accent)]/50 focus:bg-white/[0.06]",
+  "focus:shadow-[0_0_0_3px_rgba(212,165,116,0.1)]",
+].join(" ");
+
+const labelCls = "block text-xs uppercase tracking-wider text-white/60";
+
 export function AdminLogin() {
   const auth = useAuth();
   const navigate = useNavigate();
@@ -38,50 +50,55 @@ export function AdminLogin() {
   }
 
   return (
-    <div className="max-w-md mx-auto py-12 px-4">
-      <h1 className="text-2xl font-semibold mb-6">
-        Přihlášení do administrace
-      </h1>
-      <form onSubmit={submit} className="space-y-4">
-        <label className="block">
-          <span className="text-sm text-stone-700">E-mail</span>
-          <input
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
-            autoComplete="email"
-            required
-          />
-        </label>
-        <label className="block">
-          <span className="text-sm text-stone-700">Heslo</span>
-          <input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
-            autoComplete="current-password"
-            required
-          />
-        </label>
-        {error && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
-            {error}
-          </div>
-        )}
-        <button
-          type="submit"
-          disabled={submitting}
-          className="bg-stone-900 text-white px-6 py-2 rounded-md hover:bg-stone-800 transition disabled:opacity-40"
-        >
-          {submitting ? "Přihlašuji…" : "Přihlásit"}
-        </button>
-      </form>
-      <div className="mt-8 text-xs text-stone-500 border-t border-stone-200 pt-4">
-        <strong className="text-stone-700">Demo prostředí:</strong> viz README
-        §5 pro 6 testovacích účtů (3 role × heslo{" "}
-        <code className="bg-stone-100 px-1">Heslo123!</code>).
+    <div className="min-h-screen flex items-center justify-center bg-[var(--color-bg-base)] px-4 py-12">
+      <div className="max-w-md w-full">
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight mb-6 text-white">
+          Přihlášení do administrace
+        </h1>
+        <form onSubmit={submit} className="space-y-5">
+          <label className="block">
+            <span className={labelCls}>E-mail</span>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={inputCls}
+              autoComplete="email"
+              required
+            />
+          </label>
+          <label className="block">
+            <span className={labelCls}>Heslo</span>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className={inputCls}
+              autoComplete="current-password"
+              required
+            />
+          </label>
+          {error && (
+            <div className="text-sm text-[var(--color-danger)] bg-[var(--color-danger)]/[0.05] border border-[var(--color-danger)]/30 rounded-xl p-4">
+              {error}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={submitting}
+            className="btn-primary btn-primary-hover"
+          >
+            {submitting ? "Přihlašuji…" : "Přihlásit"}
+          </button>
+        </form>
+        <div className="mt-10 text-xs text-white/50 border-t border-white/10 pt-4">
+          <strong className="text-white/80">Demo prostředí:</strong> viz README
+          §5 pro 6 testovacích účtů (3 role × heslo{" "}
+          <code className="bg-white/[0.05] px-1.5 py-0.5 rounded text-white/70 font-mono">
+            Heslo123!
+          </code>
+          ).
+        </div>
       </div>
     </div>
   );

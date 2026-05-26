@@ -99,32 +99,32 @@ export function StylistsPage() {
   }
 
   if (!stylists || !services) {
-    return <div className="text-stone-500">Načítám…</div>;
+    return <div className="text-white/50">Načítám…</div>;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Kadeřníci</h1>
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight text-white">Kadeřníci</h1>
         <button
           type="button"
           onClick={() => setEditing("new")}
-          className="bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 transition"
+          className="btn-primary btn-primary-hover"
         >
           + Přidat kadeřníka
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+        <div className="mb-4 text-sm text-[var(--color-danger)] bg-[var(--color-danger)]/[0.05] border border-[var(--color-danger)]/30 rounded-xl p-3">
           {error}
         </div>
       )}
 
-      <div className="bg-white border border-stone-200 rounded-md overflow-hidden">
+      <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-stone-50 border-b border-stone-200">
-            <tr className="text-left text-stone-600">
+          <thead className="bg-white/[0.04] border-b border-white/10">
+            <tr className="text-left text-white/60">
               <th className="px-4 py-2 font-medium">Jméno</th>
               <th className="px-4 py-2 font-medium">Tarif</th>
               <th className="px-4 py-2 font-medium">Služby</th>
@@ -134,20 +134,20 @@ export function StylistsPage() {
           </thead>
           <tbody>
             {stylists.map((s) => (
-              <tr key={s.id} className="border-b border-stone-100 last:border-b-0">
+              <tr key={s.id} className="border-b border-white/5 last:border-b-0">
                 <td className="px-4 py-2 font-medium">{s.name}</td>
                 <td className="px-4 py-2">{LEVEL_LABELS[s.level]}</td>
-                <td className="px-4 py-2 text-stone-500">
+                <td className="px-4 py-2 text-white/50">
                   {s.serviceIds.length}
                 </td>
                 <td className="px-4 py-2">
                   <button
                     type="button"
                     onClick={() => void toggleActive(s)}
-                    className={`text-xs px-2 py-1 rounded ${
+                    className={`text-xs px-2 py-1 rounded transition-colors ${
                       s.active
-                        ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                        : "bg-stone-100 text-stone-500 hover:bg-stone-200"
+                        ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                        : "bg-white/[0.05] text-white/40 hover:bg-white/[0.08]"
                     }`}
                   >
                     {s.active ? "Aktivní" : "Neaktivní"}
@@ -157,7 +157,7 @@ export function StylistsPage() {
                   <button
                     type="button"
                     onClick={() => setEditing(s)}
-                    className="text-stone-600 hover:text-stone-900 text-sm"
+                    className="text-white/60 hover:text-white text-sm"
                   >
                     Upravit
                   </button>
@@ -247,7 +247,7 @@ function StylistForm({
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-md max-w-2xl w-full p-6 my-8 space-y-4"
+        className="bg-[var(--color-bg-base)] border border-white/10 backdrop-blur-xl rounded-2xl max-w-2xl w-full p-6 my-8 space-y-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">
@@ -256,7 +256,7 @@ function StylistForm({
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-700 text-2xl leading-none"
+            className="text-white/40 hover:text-white/80 text-2xl leading-none"
             aria-label="Zavřít"
           >
             ×
@@ -264,22 +264,22 @@ function StylistForm({
         </div>
 
         <label className="block">
-          <span className="text-sm text-stone-700">Jméno *</span>
+          <span className="text-sm text-white/80">Jméno *</span>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
+            className="mt-1 w-full border border-white/15 rounded-md px-3 py-2"
             required
           />
         </label>
 
         <label className="block">
-          <span className="text-sm text-stone-700">Tarif</span>
+          <span className="text-sm text-white/80">Tarif</span>
           <select
             value={level}
             onChange={(e) => setLevel(e.target.value as StylistLevel)}
-            className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
+            className="mt-1 w-full border border-white/15 rounded-md px-3 py-2"
           >
             {(["junior", "standard", "senior"] as const).map((l) => (
               <option key={l} value={l}>
@@ -290,16 +290,16 @@ function StylistForm({
         </label>
 
         <div>
-          <div className="text-sm text-stone-700 mb-2">
+          <div className="text-sm text-white/80 mb-2">
             Služby * (alespoň jedna)
           </div>
-          <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto border border-stone-200 rounded-md p-2">
+          <div className="grid grid-cols-2 gap-1 max-h-48 overflow-y-auto border border-white/10 rounded-md p-2">
             {services
               .filter((s) => s.active)
               .map((s) => (
                 <label
                   key={s.id}
-                  className="flex items-center gap-2 text-sm hover:bg-stone-50 px-2 py-1 rounded"
+                  className="flex items-center gap-2 text-sm hover:bg-white/[0.04] px-2 py-1 rounded"
                 >
                   <input
                     type="checkbox"
@@ -319,7 +319,7 @@ function StylistForm({
         </div>
 
         <div>
-          <div className="text-sm text-stone-700 mb-2">Pracovní doba</div>
+          <div className="text-sm text-white/80 mb-2">Pracovní doba</div>
           <div className="space-y-2">
             {WEEKDAYS.map(({ key, label }) => (
               <WeekdayRow
@@ -333,23 +333,23 @@ function StylistForm({
         </div>
 
         {error && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+          <div className="text-sm text-[var(--color-danger)] bg-[var(--color-danger)]/[0.05] border border-[var(--color-danger)]/30 rounded-xl p-3">
             {error}
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-stone-200 pt-4">
+        <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-600 hover:text-stone-900 px-4 py-2"
+            className="text-white/60 hover:text-white px-4 py-2"
           >
             Zrušit
           </button>
           <button
             type="submit"
             disabled={!canSubmit || busy}
-            className="bg-stone-900 text-white px-6 py-2 rounded-md hover:bg-stone-800 transition disabled:opacity-40"
+            className="btn-primary btn-primary-hover"
           >
             {busy ? "Ukládám…" : initial ? "Uložit" : "Vytvořit"}
           </button>
@@ -387,18 +387,18 @@ function WeekdayRow({
             type="time"
             value={value!.start}
             onChange={(e) => onChange({ ...value!, start: e.target.value })}
-            className="border border-stone-300 rounded-md px-2 py-1 text-sm"
+            className="border border-white/15 rounded-md px-2 py-1 text-sm"
           />
-          <span className="text-stone-400">–</span>
+          <span className="text-white/40">–</span>
           <input
             type="time"
             value={value!.end}
             onChange={(e) => onChange({ ...value!, end: e.target.value })}
-            className="border border-stone-300 rounded-md px-2 py-1 text-sm"
+            className="border border-white/15 rounded-md px-2 py-1 text-sm"
           />
         </>
       ) : (
-        <span className="text-sm text-stone-400">Volno</span>
+        <span className="text-sm text-white/40">Volno</span>
       )}
     </div>
   );

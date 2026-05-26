@@ -67,32 +67,32 @@ export function ServicesPage() {
   }
 
   if (!services) {
-    return <div className="text-stone-500">Načítám…</div>;
+    return <div className="text-white/50">Načítám…</div>;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-semibold">Služby</h1>
+        <h1 className="font-display text-2xl md:text-3xl tracking-tight text-white">Služby</h1>
         <button
           type="button"
           onClick={() => setEditing("new")}
-          className="bg-stone-900 text-white px-4 py-2 rounded-md hover:bg-stone-800 transition"
+          className="btn-primary btn-primary-hover"
         >
           + Přidat službu
         </button>
       </div>
 
       {error && (
-        <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+        <div className="mb-4 text-sm text-[var(--color-danger)] bg-[var(--color-danger)]/[0.05] border border-[var(--color-danger)]/30 rounded-xl p-3">
           {error}
         </div>
       )}
 
-      <div className="bg-white border border-stone-200 rounded-md overflow-hidden">
+      <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl overflow-hidden">
         <table className="w-full text-sm">
-          <thead className="bg-stone-50 border-b border-stone-200">
-            <tr className="text-left text-stone-600">
+          <thead className="bg-white/[0.04] border-b border-white/10">
+            <tr className="text-left text-white/60">
               <th className="px-4 py-2 font-medium">Název</th>
               <th className="px-4 py-2 font-medium">Kategorie</th>
               <th className="px-4 py-2 font-medium">Délka</th>
@@ -103,14 +103,14 @@ export function ServicesPage() {
           </thead>
           <tbody>
             {services.map((s) => (
-              <tr key={s.id} className="border-b border-stone-100 last:border-b-0">
+              <tr key={s.id} className="border-b border-white/5 last:border-b-0">
                 <td className="px-4 py-2 font-medium">{s.name}</td>
                 <td className="px-4 py-2">{CATEGORY_LABELS[s.category]}</td>
                 <td className="px-4 py-2">{s.durationMinutes} min</td>
                 <td className="px-4 py-2">
                   {s.basePrice} Kč
                   {s.lengthVariants && (
-                    <span className="text-stone-400 text-xs ml-1">
+                    <span className="text-white/40 text-xs ml-1">
                       (S/M/L)
                     </span>
                   )}
@@ -119,10 +119,10 @@ export function ServicesPage() {
                   <button
                     type="button"
                     onClick={() => void toggleActive(s)}
-                    className={`text-xs px-2 py-1 rounded ${
+                    className={`text-xs px-2 py-1 rounded transition-colors ${
                       s.active
-                        ? "bg-emerald-100 text-emerald-800 hover:bg-emerald-200"
-                        : "bg-stone-100 text-stone-500 hover:bg-stone-200"
+                        ? "bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25"
+                        : "bg-white/[0.05] text-white/40 hover:bg-white/[0.08]"
                     }`}
                   >
                     {s.active ? "Aktivní" : "Neaktivní"}
@@ -132,7 +132,7 @@ export function ServicesPage() {
                   <button
                     type="button"
                     onClick={() => setEditing(s)}
-                    className="text-stone-600 hover:text-stone-900 text-sm"
+                    className="text-white/60 hover:text-white text-sm"
                   >
                     Upravit
                   </button>
@@ -222,7 +222,7 @@ function ServiceForm({
       <form
         onSubmit={submit}
         onClick={(e) => e.stopPropagation()}
-        className="bg-white rounded-md max-w-md w-full p-6 my-8 space-y-4"
+        className="bg-[var(--color-bg-base)] border border-white/10 backdrop-blur-xl rounded-2xl max-w-md w-full p-6 my-8 space-y-4 shadow-[0_20px_60px_rgba(0,0,0,0.5)]"
       >
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">
@@ -231,7 +231,7 @@ function ServiceForm({
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-400 hover:text-stone-700 text-2xl leading-none"
+            className="text-white/40 hover:text-white/80 text-2xl leading-none"
             aria-label="Zavřít"
           >
             ×
@@ -239,22 +239,22 @@ function ServiceForm({
         </div>
 
         <label className="block">
-          <span className="text-sm text-stone-700">Název *</span>
+          <span className="text-sm text-white/80">Název *</span>
           <input
             type="text"
             value={name}
             onChange={(e) => setName(e.target.value)}
-            className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
+            className="mt-1 w-full border border-white/15 rounded-md px-3 py-2"
             required
           />
         </label>
 
         <label className="block">
-          <span className="text-sm text-stone-700">Kategorie</span>
+          <span className="text-sm text-white/80">Kategorie</span>
           <select
             value={category}
             onChange={(e) => setCategory(e.target.value as ServiceCategory)}
-            className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
+            className="mt-1 w-full border border-white/15 rounded-md px-3 py-2"
           >
             {CATEGORIES.map((c) => (
               <option key={c} value={c}>
@@ -266,31 +266,31 @@ function ServiceForm({
 
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
-            <span className="text-sm text-stone-700">Délka (min)</span>
+            <span className="text-sm text-white/80">Délka (min)</span>
             <input
               type="number"
               min={1}
               value={duration}
               onChange={(e) => setDuration(Number(e.target.value))}
-              className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
+              className="mt-1 w-full border border-white/15 rounded-md px-3 py-2"
               required
             />
           </label>
           <label className="block">
-            <span className="text-sm text-stone-700">Cena (Kč)</span>
+            <span className="text-sm text-white/80">Cena (Kč)</span>
             <input
               type="number"
               min={0}
               value={basePrice}
               onChange={(e) => setBasePrice(Number(e.target.value))}
-              className="mt-1 w-full border border-stone-300 rounded-md px-3 py-2"
+              className="mt-1 w-full border border-white/15 rounded-md px-3 py-2"
               required
             />
           </label>
         </div>
 
         {isBarveni && (
-          <div className="border border-stone-200 rounded-md p-3">
+          <div className="border border-white/10 rounded-md p-3">
             <label className="flex items-center gap-2 mb-2">
               <input
                 type="checkbox"
@@ -309,7 +309,7 @@ function ServiceForm({
               <div className="grid grid-cols-3 gap-2">
                 {(["short", "medium", "long"] as const).map((len) => (
                   <label key={len} className="block">
-                    <span className="text-xs text-stone-600 capitalize">
+                    <span className="text-xs text-white/60 capitalize">
                       {len === "short"
                         ? "Krátké"
                         : len === "medium"
@@ -326,7 +326,7 @@ function ServiceForm({
                           [len]: Number(e.target.value),
                         })
                       }
-                      className="mt-1 w-full border border-stone-300 rounded-md px-2 py-1 text-sm"
+                      className="mt-1 w-full border border-white/15 rounded-md px-2 py-1 text-sm"
                     />
                   </label>
                 ))}
@@ -336,23 +336,23 @@ function ServiceForm({
         )}
 
         {error && (
-          <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">
+          <div className="text-sm text-[var(--color-danger)] bg-[var(--color-danger)]/[0.05] border border-[var(--color-danger)]/30 rounded-xl p-3">
             {error}
           </div>
         )}
 
-        <div className="flex items-center justify-end gap-2 border-t border-stone-200 pt-4">
+        <div className="flex items-center justify-end gap-2 border-t border-white/10 pt-4">
           <button
             type="button"
             onClick={onClose}
-            className="text-stone-600 hover:text-stone-900 px-4 py-2"
+            className="text-white/60 hover:text-white px-4 py-2"
           >
             Zrušit
           </button>
           <button
             type="submit"
             disabled={!canSubmit || busy}
-            className="bg-stone-900 text-white px-6 py-2 rounded-md hover:bg-stone-800 transition disabled:opacity-40"
+            className="btn-primary btn-primary-hover"
           >
             {busy ? "Ukládám…" : initial ? "Uložit" : "Vytvořit"}
           </button>

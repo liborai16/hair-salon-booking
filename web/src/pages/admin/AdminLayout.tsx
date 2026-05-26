@@ -19,13 +19,16 @@ export function AdminLayout() {
   const isStaff = auth.role === "owner" || auth.role === "receptionist";
 
   return (
-    <div className="min-h-screen flex bg-stone-50">
-      <aside className="w-56 bg-white border-r border-stone-200 flex flex-col">
-        <div className="px-4 py-4 border-b border-stone-200">
-          <Link to="/" className="text-lg font-semibold tracking-tight">
+    <div className="min-h-screen flex bg-[var(--color-bg-base)]">
+      <aside className="w-56 bg-black/40 backdrop-blur-xl border-r border-white/10 flex flex-col">
+        <div className="px-4 py-4 border-b border-white/10">
+          <Link
+            to="/"
+            className="text-lg font-semibold tracking-tight text-white"
+          >
             Salon Krásná
           </Link>
-          <div className="text-xs text-stone-500 mt-1">Administrace</div>
+          <div className="text-xs text-white/50 mt-1">Administrace</div>
         </div>
         <nav className="flex-1 px-2 py-4 space-y-1">
           <NavItem to="/admin/dashboard">Rozvrh</NavItem>
@@ -34,13 +37,13 @@ export function AdminLayout() {
           {isOwner && <NavItem to="/admin/services">Služby</NavItem>}
           {isOwner && <NavItem to="/admin/reports">Přehledy</NavItem>}
         </nav>
-        <div className="border-t border-stone-200 px-4 py-4 text-xs text-stone-500">
-          <div className="font-medium text-stone-700">{auth.user.email}</div>
+        <div className="border-t border-white/10 px-4 py-4 text-xs text-white/50">
+          <div className="font-medium text-white/80">{auth.user.email}</div>
           <div>{ROLE_LABELS[auth.role]}</div>
           <button
             type="button"
             onClick={() => void signOutAdmin()}
-            className="mt-3 text-stone-500 hover:text-stone-900"
+            className="mt-3 text-white/50 hover:text-white transition-colors"
           >
             Odhlásit
           </button>
@@ -58,10 +61,10 @@ function NavItem({ to, children }: { to: string; children: ReactNode }) {
     <NavLink
       to={to}
       className={({ isActive }) =>
-        `block px-3 py-2 rounded-md text-sm ${
+        `block px-3 py-2 rounded-md text-sm transition-colors border-l-2 ${
           isActive
-            ? "bg-stone-900 text-white"
-            : "text-stone-700 hover:bg-stone-100"
+            ? "bg-[var(--color-accent)]/10 text-[var(--color-accent)] border-[var(--color-accent)]"
+            : "text-white/60 hover:text-white hover:bg-white/[0.04] border-transparent"
         }`
       }
     >
