@@ -164,16 +164,16 @@ function Section1Hero() {
     >
       <BackgroundGradientAnimation interactive />
 
-      <div className="relative z-10 container mx-auto max-w-7xl px-6 md:px-12">
+      <div className="relative z-10 container mx-auto max-w-7xl px-6 md:px-12 w-full pb-20 md:pb-0">
         <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-8 md:mb-12">
           Kadeřnický salon · Praha
         </div>
 
-        <h1 className="font-display font-medium tracking-tight leading-[0.95]">
-          <span className="block text-[clamp(56px,12vw,160px)]">
+        <h1 className="font-display font-medium tracking-tight leading-[1.05] md:leading-[0.95]">
+          <span className="block text-[clamp(42px,10vw,80px)] md:text-[clamp(56px,12vw,160px)]">
             Vlasy, kterým budete
           </span>
-          <span className="block text-[clamp(56px,12vw,160px)] italic text-[var(--color-accent)] mt-2">
+          <span className="block text-[clamp(42px,10vw,80px)] md:text-[clamp(56px,12vw,160px)] italic text-[var(--color-accent)] mt-2">
             věřit<span className="text-white">.</span>
           </span>
         </h1>
@@ -183,7 +183,7 @@ function Section1Hero() {
           Pět kadeřnic, jedna židle pro každou, žádné nahánění.
         </p>
 
-        <div className="mt-12 md:mt-16 flex flex-col sm:flex-row gap-4 items-start sm:items-center">
+        <div className="mt-8 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-center">
           <Link
             to="/book"
             className="inline-flex items-center gap-2 px-10 py-5 rounded-full text-white text-base md:text-lg font-medium bg-gradient-to-r from-[var(--color-accent)] to-violet-500 shadow-[0_20px_60px_rgba(139,92,246,0.4)] hover:scale-105 transition-transform"
@@ -206,7 +206,7 @@ function Section1Hero() {
         </div>
       </div>
 
-      <div className="absolute bottom-8 left-1/2 -translate-x-1/2 text-white/30 text-xs tracking-widest">
+      <div className="hidden md:block absolute bottom-8 left-1/2 -translate-x-1/2 text-white/30 text-xs tracking-widest">
         ↓ ZJISTIT VÍCE
       </div>
     </section>
@@ -217,13 +217,13 @@ function Section2Trust() {
   return (
     <section
       id="o-nas"
-      className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center"
+      className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center"
     >
       <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
         <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]/70 mb-6">
           Kdo jsme
         </div>
-        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-8 md:mb-12 max-w-4xl">
+        <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-8 md:mb-12 max-w-4xl">
           Studio, kde{" "}
           <span className="italic text-[var(--color-accent)]">
             nepospícháme
@@ -278,27 +278,27 @@ function Section3Services() {
   return (
     <section
       id="sluzby"
-      className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center"
+      className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center"
     >
       <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
         <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-6">
           Naše služby
         </div>
-        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-16 md:mb-24">
+        <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-24">
           Co pro vás <span className="italic text-[var(--color-accent)]">uděláme</span>.
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-10 mt-8 md:mt-12">
-          <div className="md:h-[340px] h-[220px]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-10 mt-6 md:mt-12">
+          <div className="md:h-[340px] h-[160px]">
             <ServiceCard3D title="Stříhání" eyebrow="01" />
           </div>
-          <div className="md:h-[340px] h-[220px]">
+          <div className="md:h-[340px] h-[160px]">
             <ServiceCard3D title="Barvení" eyebrow="02" />
           </div>
-          <div className="md:h-[280px] h-[200px]">
+          <div className="md:h-[280px] h-[140px]">
             <ServiceCard3D title="Foukaná" eyebrow="03" />
           </div>
-          <div className="md:h-[280px] h-[200px]">
+          <div className="md:h-[280px] h-[140px]">
             <ServiceCard3D title="Dětský střih" eyebrow="04" />
           </div>
         </div>
@@ -347,13 +347,13 @@ function Section4HowItWorks() {
   return (
     <section
       id="jak-to-funguje"
-      className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center"
+      className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center"
     >
       <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
         <div className="text-xs uppercase tracking-[0.2em] text-white/40 mb-6">
           Jak to funguje
         </div>
-        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-16 md:mb-24">
+        <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-24">
           Tři kroky k <span className="italic text-[var(--color-accent)]">termínu</span>.
         </h2>
 
@@ -410,13 +410,13 @@ function Section5Tym() {
   return (
     <section
       id="tym"
-      className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center"
+      className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center"
     >
       <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
         <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]/70 mb-6">
           Náš tým
         </div>
-        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-6 max-w-4xl">
+        <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-6 max-w-4xl">
           Pět rukou,{" "}
           <span className="italic text-[var(--color-accent)]">
             pět příběhů
@@ -427,7 +427,7 @@ function Section5Tym() {
           Každá kadeřnice má svoji specializaci. Rezervační systém vám ukáže
           jen ty, které mohou udělat to, co potřebujete.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
           {TEAM_MEMBERS.map((member) => (
             <TeamCard key={member.id} member={member} />
           ))}
@@ -476,13 +476,13 @@ function Section6Cenik() {
   return (
     <section
       id="cenik"
-      className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center"
+      className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center"
     >
       <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
         <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]/70 mb-6">
           Ceník
         </div>
-        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-6 max-w-4xl">
+        <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-6 max-w-4xl">
           Co <span className="italic text-[var(--color-accent)]">nabízíme</span>.
         </h2>
         <p className="text-white/70 text-lg md:text-xl leading-relaxed max-w-2xl mb-16 md:mb-20">
@@ -490,7 +490,7 @@ function Section6Cenik() {
           rezervaci. Všechny ceny jsou orientační, finální cenu řeší recepce
           po dohodě s kadeřnicí.
         </p>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 mb-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-8 mb-8 md:mb-12">
           {PRICE_CATEGORIES.map((c) => (
             <PriceCategoryCard key={c.id} category={c} />
           ))}
@@ -539,16 +539,16 @@ function Section7Reference() {
   return (
     <section
       id="reference"
-      className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center"
+      className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center"
     >
       <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
         <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]/70 mb-6">
           Reference
         </div>
-        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-16 md:mb-20 max-w-4xl">
+        <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-20 max-w-4xl">
           Co o nás <span className="italic text-[var(--color-accent)]">říkají</span>.
         </h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 md:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-8">
           {TESTIMONIALS.map((t, i) => (
             <TestimonialCard key={i} testimonial={t} />
           ))}
@@ -589,18 +589,18 @@ function Section8Kontakt() {
   return (
     <section
       id="kontakt"
-      className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center"
+      className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center"
     >
       <div className="container mx-auto max-w-7xl px-6 md:px-12 w-full">
         <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]/70 mb-6">
           Kontakt
         </div>
-        <h2 className="font-display font-medium tracking-tight leading-[1.05] text-[clamp(40px,7vw,80px)] mb-16 md:mb-20 max-w-4xl">
+        <h2 className="font-display font-medium tracking-tight leading-[1.1] md:leading-[1.05] text-[clamp(32px,7vw,80px)] mb-16 md:mb-20 max-w-4xl">
           Najdete nás{" "}
           <span className="italic text-[var(--color-accent)]">v Praze</span>.
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-start">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-12 items-start">
           <div className="space-y-7">
             <ContactRow
               label="Adresa"
@@ -639,7 +639,7 @@ function Section8Kontakt() {
             </div>
           </div>
 
-          <div className="rounded-2xl overflow-hidden border border-white/[0.08] h-[400px] md:h-[500px] bg-white/[0.02]">
+          <div className="rounded-2xl overflow-hidden border border-white/[0.08] h-[280px] md:h-[500px] bg-white/[0.02]">
             <iframe
               src="https://www.openstreetmap.org/export/embed.html?bbox=14.4328%2C50.0748%2C14.4428%2C50.0798&layer=mapnik&marker=50.0773%2C14.4378"
               title="Mapa - Studio, Náměstí Míru 5, Praha 2"
@@ -680,7 +680,7 @@ function ContactRow({
 
 function Section9CTAFinale() {
   return (
-    <section className="min-h-screen pt-24 md:pt-32 pb-16 md:pb-20 relative overflow-hidden flex items-center justify-center">
+    <section className="min-h-screen pt-20 md:pt-32 pb-12 md:pb-20 relative overflow-hidden flex items-center justify-center">
       <BackgroundGradientAnimation interactive />
 
       <div className="relative z-10 container mx-auto max-w-4xl px-6 md:px-12 text-center">
