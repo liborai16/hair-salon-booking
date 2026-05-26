@@ -69,58 +69,66 @@ export function ConfirmStep({
 
   return (
     <div>
-      <h1 className="text-3xl md:text-4xl mb-2">Potvrzení</h1>
-      <p className="text-muted mb-8">
+      <h1 className="font-display text-3xl md:text-4xl tracking-tight mb-2">
+        Potvrzení
+      </h1>
+      <p className="text-white/60 mb-8">
         Zkontrolujte detaily a potvrďte rezervaci.
       </p>
 
-      <div className="bg-bg-soft border border-hairline rounded-lg p-6 space-y-5 max-w-md">
-        <Row label="Termín">
-          <div className="font-display text-xl font-medium">
-            {formatDayHeading(startParts.ymd)}
+      <div className="bg-white/[0.03] backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-8 max-w-md">
+        <div className="divide-y divide-white/5">
+          <Row label="Termín">
+            <div className="font-display text-xl font-medium">
+              {formatDayHeading(startParts.ymd)}
+            </div>
+            <div className="text-white/70">
+              {startParts.hhmm}–{endParts.hhmm}
+            </div>
+          </Row>
+          <Row label="Kadeřník">{stylist.name}</Row>
+          <Row label="Služby">
+            <ul className="space-y-1">
+              {services.map((s) => (
+                <li key={s.id}>
+                  {s.name}
+                  {serviceLengths[s.id] && (
+                    <span className="text-white/40">
+                      {" · "}
+                      {serviceLengths[s.id]}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </Row>
+          <Row label="Vy">
+            {customer.name}
+            <div className="text-sm text-white/50 mt-0.5">
+              {customer.phone} · {customer.email}
+            </div>
+          </Row>
+        </div>
+        <div className="flex items-center justify-between pt-5 mt-5 border-t border-white/10">
+          <div>
+            <div className="text-xs uppercase tracking-[0.15em] text-white/60">
+              Cena celkem
+            </div>
+            <div className="text-xs text-white/40 mt-0.5">{duration} min</div>
           </div>
-          <div className="text-fg">
-            {startParts.hhmm}–{endParts.hhmm}
-          </div>
-        </Row>
-        <Row label="Kadeřník">{stylist.name}</Row>
-        <Row label="Služby">
-          <ul className="space-y-1">
-            {services.map((s) => (
-              <li key={s.id}>
-                {s.name}
-                {serviceLengths[s.id] && (
-                  <span className="text-muted">
-                    {" · "}
-                    {serviceLengths[s.id]}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </Row>
-        <div className="border-t border-hairline pt-4">
-          <div className="label-mono mb-1">Celkem</div>
-          <div className="font-display text-3xl font-medium tracking-tight">
+          <div className="font-display text-3xl md:text-4xl tracking-tight text-[var(--color-accent)] tabular-nums">
             {finalPrice} Kč
           </div>
-          <div className="text-sm text-muted mt-0.5">{duration} min</div>
         </div>
-        <Row label="Vy">
-          {customer.name}
-          <div className="text-sm text-muted mt-0.5">
-            {customer.phone} · {customer.email}
-          </div>
-        </Row>
       </div>
 
       {error && (
-        <div className="mt-4 text-sm text-danger bg-danger-soft border border-danger/20 rounded-md p-3 max-w-md">
+        <div className="mt-4 p-4 rounded-xl border border-[var(--color-danger)]/30 bg-[var(--color-danger)]/[0.05] text-sm text-[var(--color-danger)] max-w-md">
           {error}
         </div>
       )}
 
-      <div className="mt-8 border-t border-hairline pt-6 flex items-center justify-between max-w-md">
+      <div className="mt-8 pt-6 border-t border-white/10 flex items-center justify-between max-w-md">
         <button
           type="button"
           onClick={onPrev}
@@ -150,9 +158,11 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <div>
-      <div className="label-mono mb-1">{label}</div>
-      <div className="font-medium text-fg">{children}</div>
+    <div className="flex flex-col gap-1 py-3">
+      <div className="text-xs uppercase tracking-[0.15em] text-white/40">
+        {label}
+      </div>
+      <div className="text-base md:text-lg text-white">{children}</div>
     </div>
   );
 }

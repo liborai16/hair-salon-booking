@@ -261,6 +261,17 @@
     0 4px 16px rgba(13, 9, 5, 0.4);
 }
 
+/* Success pop (Phase 8.3.G.3) — entrance animation for SuccessStep ✓ chip. */
+@keyframes success-pop {
+  0%   { opacity: 0; transform: scale(0.6); }
+  60%  { opacity: 1; transform: scale(1.1); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+@utility animate-success-pop {
+  animation: success-pop 600ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
 /* Aurora Background animation (Phase 8.3.C) — slow swirl, no comet streaks */
 @keyframes aurora {
   from {
