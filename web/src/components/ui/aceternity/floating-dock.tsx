@@ -67,7 +67,7 @@ export default function FloatingDock({ items, className }: FloatingDockProps) {
                   "px-3 md:px-4 py-2 rounded-full",
                   "transition-colors duration-200",
                   active
-                    ? "bg-[var(--color-accent)]/20 text-white ring-1 ring-[var(--color-accent)]/40 shadow-[0_0_20px_rgba(139,92,246,0.3)]"
+                    ? "bg-[var(--color-accent)]/20 text-white ring-1 ring-[var(--color-accent)]/40 shadow-[0_0_20px_rgba(212,165,116,0.3)]"
                     : "text-white/60 hover:text-white",
                 )}
               >

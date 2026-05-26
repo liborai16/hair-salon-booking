@@ -186,7 +186,7 @@ function Section1Hero() {
         <div className="mt-8 md:mt-10 flex flex-col sm:flex-row gap-3 md:gap-4 items-start sm:items-center">
           <Link
             to="/book"
-            className="inline-flex items-center gap-2 px-10 py-5 rounded-full text-white text-base md:text-lg font-medium bg-gradient-to-r from-[var(--color-accent)] to-violet-500 shadow-[0_20px_60px_rgba(139,92,246,0.4)] hover:scale-105 transition-transform"
+            className="inline-flex items-center gap-2 px-10 py-5 rounded-full text-white text-base md:text-lg font-medium bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-deep)] shadow-[0_20px_60px_rgba(212,165,116,0.4)] hover:scale-105 transition-transform"
           >
             Rezervovat termín
             <span className="text-xl">→</span>
@@ -694,7 +694,7 @@ function Section9CTAFinale() {
         <div className="mt-12 md:mt-16">
           <Link
             to="/book"
-            className="inline-flex items-center gap-3 px-12 py-6 rounded-full text-white text-lg md:text-xl font-medium bg-gradient-to-r from-[var(--color-accent)] to-violet-500 shadow-[0_30px_80px_rgba(139,92,246,0.5)] hover:scale-105 transition-transform"
+            className="inline-flex items-center gap-3 px-12 py-6 rounded-full text-white text-lg md:text-xl font-medium bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-deep)] shadow-[0_30px_80px_rgba(212,165,116,0.5)] hover:scale-105 transition-transform"
           >
             Rezervovat termín
             <span className="text-2xl">→</span>

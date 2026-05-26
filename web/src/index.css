@@ -11,44 +11,49 @@
  * ─────────────────────────────────────────────────────────────────── */
 
 @theme {
-  /* ATMOSPHERIC BG (gradient layered, NOT flat) */
-  --color-bg-base: #0A0814;
-  --color-bg-gradient-top: #1A0F2E;
-  --color-bg-gradient-mid: #0F0A1F;
-  --color-bg-gradient-bot: #050308;
-  --color-bg: #0A0814;
-  --color-bg-soft: rgba(255, 255, 255, 0.03);
-  --color-surface-1: rgba(255, 255, 255, 0.03);
-  --color-surface-2: rgba(255, 255, 255, 0.06);
-  --color-surface: rgba(255, 255, 255, 0.05);
+  /* ATMOSPHERIC BG (gold luxury — warm dark cocoa, Phase 8.4.1) */
+  --color-bg-base: rgb(13, 9, 5);
+  --color-bg-gradient-top: rgb(45, 26, 10);
+  --color-bg-gradient-mid: rgb(20, 14, 8);
+  --color-bg-gradient-bot: rgb(5, 3, 1);
+  --color-bg: rgb(13, 9, 5);
+  --color-bg-soft: rgba(245, 235, 216, 0.03);
+  --color-surface-1: rgba(245, 235, 216, 0.03);
+  --color-surface-2: rgba(245, 235, 216, 0.06);
+  --color-surface: rgba(245, 235, 216, 0.05);
 
-  /* TEXT */
-  --color-fg: #FFFFFF;
-  --color-text-2: #C5C5D2;
-  --color-muted: #7C7C8A;
-  --color-surface-fg: #FFFFFF;
-  --color-surface-muted: #7C7C8A;
+  /* TEXT (cream tones) */
+  --color-fg: rgb(245, 235, 216);
+  --color-text-2: rgba(245, 235, 216, 0.75);
+  --color-muted: rgba(245, 235, 216, 0.55);
+  --color-fg-muted: rgba(245, 235, 216, 0.6);
+  --color-surface-fg: rgb(245, 235, 216);
+  --color-surface-muted: rgba(245, 235, 216, 0.55);
 
-  /* ACCENT (Lavender retained from Premium Dark) */
-  --color-accent: #B8A1F5;
-  --color-accent-strong: #9B7FE8;
-  --color-accent-soft: rgba(184, 161, 245, 0.10);
-  --color-accent-glow: rgba(184, 161, 245, 0.30);
+  /* ACCENT (warm gold — Phase 8.4.1) */
+  --color-accent: rgb(212, 165, 116);
+  --color-accent-strong: rgb(184, 134, 76);
+  --color-accent-deep: rgb(184, 134, 76);
+  --color-accent-bright: rgb(229, 195, 137);
+  --color-accent-soft: rgba(212, 165, 116, 0.10);
+  --color-accent-glow: rgba(212, 165, 116, 0.30);
 
-  /* AURORA GLOWS (multi-color atmospheric) */
-  --color-glow-violet: rgba(139, 92, 246, 0.20);
-  --color-glow-pink: rgba(236, 72, 153, 0.14);
-  --color-glow-cyan: rgba(103, 232, 249, 0.10);
-  --color-glow-amber: rgba(251, 191, 119, 0.10);
+  /* GLOWS (gold/amber/warm — names preserved for body::before + utility back-compat) */
+  --color-glow-violet: rgba(212, 165, 116, 0.20);
+  --color-glow-pink: rgba(184, 134, 76, 0.14);
+  --color-glow-cyan: rgba(229, 195, 137, 0.10);
+  --color-glow-amber: rgba(184, 134, 76, 0.15);
+  --color-glow-gold: rgba(212, 165, 116, 0.20);
+  --color-glow-warm: rgba(80, 50, 25, 0.30);
 
-  /* Aurora Background (Phase 8.3.C) — cinematic multi-color swirl */
+  /* Aurora Background (still unused — gold variants kept for completeness) */
   --aurora-cinematic: repeating-linear-gradient(
     100deg,
-    rgba(184, 161, 245, 0.5) 10%,
-    rgba(139, 92, 246, 0.4) 15%,
-    rgba(236, 72, 153, 0.4) 20%,
-    rgba(251, 191, 119, 0.3) 25%,
-    rgba(184, 161, 245, 0.5) 30%
+    rgba(212, 165, 116, 0.5) 10%,
+    rgba(184, 134, 76, 0.4) 15%,
+    rgba(229, 195, 137, 0.4) 20%,
+    rgba(80, 50, 25, 0.3) 25%,
+    rgba(212, 165, 116, 0.5) 30%
   );
 
   --aurora-mask-gradient: repeating-linear-gradient(
@@ -60,22 +65,22 @@
     rgba(255, 255, 255, 0.08) 16%
   );
 
-  /* Background Gradient Animation (Phase 8.3.C.2) — subtle blob mesh */
-  --gradient-bg-start: rgb(10, 8, 20);
-  --gradient-bg-end: rgb(20, 15, 35);
-  --gradient-first-color: 184, 161, 245;    /* lavender */
-  --gradient-second-color: 139, 92, 246;    /* violet */
-  --gradient-third-color: 236, 72, 153;     /* pink */
-  --gradient-fourth-color: 251, 191, 119;   /* amber */
-  --gradient-pointer-color: 184, 161, 245;  /* lavender */
+  /* Background Gradient Animation — Gold Luxury blobs */
+  --gradient-bg-start: rgb(13, 9, 5);
+  --gradient-bg-end: rgb(20, 14, 8);
+  --gradient-first-color: 212, 165, 116;    /* warm gold */
+  --gradient-second-color: 184, 134, 76;    /* deep amber */
+  --gradient-third-color: 229, 195, 137;    /* bright gold */
+  --gradient-fourth-color: 100, 65, 30;     /* warm brown */
+  --gradient-pointer-color: 212, 165, 116;  /* gold cursor */
   --gradient-size: 80%;
-  --gradient-blending: hard-light;
+  --gradient-blending: screen;              /* hard-light → screen for warm gold */
 
-  /* BORDERS */
-  --color-hairline: rgba(255, 255, 255, 0.10);
-  --color-line-strong: rgba(255, 255, 255, 0.16);
+  /* BORDERS (gold-tinted) */
+  --color-hairline: rgba(212, 165, 116, 0.12);
+  --color-line-strong: rgba(212, 165, 116, 0.25);
 
-  /* STATUS */
+  /* STATUS (unchanged — functional semantics) */
   --color-success: #6EE7B7;
   --color-warning: #FBBF77;
   --color-warning-soft: rgba(251, 191, 119, 0.12);
@@ -106,9 +111,9 @@
 
   body {
     background:
-      radial-gradient(ellipse at top, #1A0F2E 0%, transparent 50%),
-      radial-gradient(ellipse at bottom, #050308 0%, transparent 50%),
-      linear-gradient(180deg, #0A0814 0%, #0F0A1F 50%, #0A0814 100%);
+      radial-gradient(ellipse at top, rgb(45, 26, 10) 0%, transparent 50%),
+      radial-gradient(ellipse at bottom, rgb(5, 3, 1) 0%, transparent 50%),
+      linear-gradient(180deg, rgb(13, 9, 5) 0%, rgb(20, 14, 8) 50%, rgb(13, 9, 5) 100%);
     background-attachment: fixed;
     color: var(--color-fg);
     position: relative;
