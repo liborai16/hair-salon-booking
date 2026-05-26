@@ -13,6 +13,37 @@ import type {
 } from "@hsb/shared";
 import { buildAvailabilityInputs } from "../useBookingData";
 import type { SelectedSlot } from "../state";
+import { cn } from "@/lib/cn";
+
+function getInitials(name: string): string {
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) return parts[0]!.slice(0, 2).toUpperCase();
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
+const CZ_WEEKDAYS = [
+  "Neděle",
+  "Pondělí",
+  "Úterý",
+  "Středa",
+  "Čtvrtek",
+  "Pátek",
+  "Sobota",
+];
+const CZ_MONTHS_GENITIVE = [
+  "ledna",
+  "února",
+  "března",
+  "dubna",
+  "května",
+  "června",
+  "července",
+  "srpna",
+  "září",
+  "října",
+  "listopadu",
+  "prosince",
+];
 
 type Props = {
   services: Service[]; // already filtered to selected
@@ -116,17 +147,19 @@ export function SlotStep({
         Vyberte kadeřníka nebo nechte „kdokoliv" pro nejvíce volných termínů.
       </p>
 
-      <div className="mb-8">
-        <div className="label-mono mb-3">Kadeřník</div>
-        <div className="flex flex-wrap gap-2">
-          <StylistChip
+      <div className="mb-10">
+        <div className="label-mono mb-4 md:mb-5">Kadeřník</div>
+        <div className="flex flex-wrap items-start justify-center gap-4 md:gap-6">
+          <StylistAvatar
+            symbol="✦"
             label="Kdokoliv"
             selected={selectedStylistId === null}
             onClick={() => onSelectStylist(null)}
           />
           {qualified.map((st) => (
-            <StylistChip
+            <StylistAvatar
               key={st.id}
+              symbol={getInitials(st.name)}
               label={st.name}
               selected={selectedStylistId === st.id}
               onClick={() => onSelectStylist(st.id)}
@@ -134,7 +167,7 @@ export function SlotStep({
           ))}
         </div>
         {qualified.length === 0 && (
-          <div className="mt-3 text-sm text-warning bg-warning-soft border border-warning/20 rounded-md p-3">
+          <div className="mt-4 text-sm text-warning bg-warning-soft border border-warning/20 rounded-md p-3">
             Žádný kadeřník neumí všechny vybrané služby. Vraťte se zpět a
             upravte výběr.
           </div>
@@ -149,49 +182,64 @@ export function SlotStep({
       )}
 
       {slots !== null && !loading && (
-        <div className="space-y-6">
+        <div className="space-y-8 md:space-y-10">
           {byDay.size === 0 ? (
             <EmptySlots />
           ) : (
-            Array.from(byDay.entries()).map(([ymd, daySlots]) => (
-              <div key={ymd}>
-                <h2 className="label-mono mb-3">{formatDayHeading(ymd)}</h2>
-                <div className="flex flex-wrap gap-2">
-                  {daySlots.map((slot) => {
-                    const hhmm = instantToWallParts(slot.start, SALON_TZ).hhmm;
-                    const stylist = stylists.find(
-                      (s) => s.id === slot.stylistId,
-                    );
-                    const isSelected =
-                      selectedSlot?.start.getTime() === slot.start.getTime() &&
-                      selectedSlot?.stylistId === slot.stylistId;
-                    return (
-                      <button
-                        key={`${slot.stylistId}-${slot.start.getTime()}`}
-                        type="button"
-                        onClick={() => onSelectSlot(slot)}
-                        className={
-                          isSelected
-                            ? "text-sm font-medium px-4 py-2.5 rounded-md border border-fg bg-fg text-surface-fg min-h-[44px] transition"
-                            : "text-sm font-medium px-4 py-2.5 rounded-md border border-hairline hover:border-fg hover:bg-bg-soft min-h-[44px] transition"
-                        }
-                      >
-                        {hhmm}
-                        {selectedStylistId === null && stylist && (
-                          <span
-                            className={`ml-2 text-xs ${
-                              isSelected ? "text-surface-muted" : "text-muted"
-                            }`}
-                          >
-                            {stylist.name.split(" ")[0]}
-                          </span>
-                        )}
-                      </button>
-                    );
-                  })}
+            Array.from(byDay.entries()).map(([ymd, daySlots]) => {
+              const day = formatDayParts(ymd);
+              return (
+                <div key={ymd}>
+                  <div className="mb-4 md:mb-5">
+                    <div className="text-xs uppercase tracking-[0.2em] text-[var(--color-accent)]/70 mb-1">
+                      {day.weekday}
+                    </div>
+                    <div className="font-display text-xl md:text-2xl tracking-tight">
+                      {day.date}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3">
+                    {daySlots.map((slot) => {
+                      const hhmm = instantToWallParts(slot.start, SALON_TZ).hhmm;
+                      const stylist = stylists.find(
+                        (s) => s.id === slot.stylistId,
+                      );
+                      const isSelected =
+                        selectedSlot?.start.getTime() === slot.start.getTime() &&
+                        selectedSlot?.stylistId === slot.stylistId;
+                      return (
+                        <button
+                          key={`${slot.stylistId}-${slot.start.getTime()}`}
+                          type="button"
+                          onClick={() => onSelectSlot(slot)}
+                          className={cn(
+                            "px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200",
+                            "backdrop-blur-xl border min-h-[44px]",
+                            isSelected
+                              ? "border-[var(--color-accent)] bg-[var(--color-accent)] text-[var(--color-bg-base)] shadow-[0_0_20px_rgba(212,165,116,0.3)]"
+                              : "border-white/10 bg-white/[0.03] text-white hover:border-[var(--color-accent)]/40 hover:bg-white/[0.06] hover:-translate-y-0.5",
+                          )}
+                        >
+                          {hhmm}
+                          {selectedStylistId === null && stylist && (
+                            <span
+                              className={cn(
+                                "ml-2 text-xs",
+                                isSelected
+                                  ? "text-[var(--color-bg-base)]/70"
+                                  : "text-white/50",
+                              )}
+                            >
+                              {stylist.name.split(" ")[0]}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       )}
@@ -214,11 +262,13 @@ export function SlotStep({
   );
 }
 
-function StylistChip({
+function StylistAvatar({
+  symbol,
   label,
   selected,
   onClick,
 }: {
+  symbol: string;
   label: string;
   selected: boolean;
   onClick: () => void;
@@ -227,28 +277,48 @@ function StylistChip({
     <button
       type="button"
       onClick={onClick}
-      className={
-        selected
-          ? "px-4 py-2.5 rounded-pill border border-fg bg-fg text-surface-fg text-sm font-medium min-h-[44px] transition"
-          : "px-4 py-2.5 rounded-pill border border-hairline hover:border-fg text-sm font-medium min-h-[44px] transition"
-      }
+      className="group flex flex-col items-center gap-2 transition-all duration-300 cursor-pointer w-20"
     >
-      {label}
+      <div
+        className={cn(
+          "w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center",
+          "font-display text-lg md:text-xl tracking-wider transition-all duration-300",
+          "backdrop-blur-xl",
+          selected
+            ? "bg-[var(--color-accent)] text-[var(--color-bg-base)] shadow-[0_0_30px_rgba(212,165,116,0.4)]"
+            : "bg-white/[0.04] border border-white/10 text-white/70 group-hover:border-[var(--color-accent)]/40 group-hover:text-white",
+        )}
+      >
+        {symbol}
+      </div>
+      <div
+        className={cn(
+          "text-xs uppercase tracking-[0.1em] text-center transition-colors",
+          selected
+            ? "text-[var(--color-accent-bright)]"
+            : "text-white/60 group-hover:text-white",
+        )}
+      >
+        {label}
+      </div>
     </button>
   );
 }
 
 function SlotsLoadingSkeleton() {
   return (
-    <div className="space-y-6 animate-pulse">
+    <div className="space-y-8 md:space-y-10 animate-pulse">
       {[1, 2, 3].map((day) => (
         <div key={day}>
-          <div className="h-3 w-20 bg-bg-soft rounded mb-3" />
-          <div className="flex flex-wrap gap-2">
+          <div className="mb-4 md:mb-5">
+            <div className="h-3 w-16 bg-white/[0.05] rounded mb-2" />
+            <div className="h-6 w-32 bg-white/[0.04] rounded" />
+          </div>
+          <div className="grid grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2 md:gap-3">
             {Array.from({ length: 6 + ((day * 3) % 5) }).map((_, i) => (
               <div
                 key={i}
-                className="h-11 w-20 rounded-md bg-bg-soft"
+                className="h-11 rounded-xl bg-white/[0.03] border border-white/[0.05]"
               />
             ))}
           </div>
@@ -260,20 +330,24 @@ function SlotsLoadingSkeleton() {
 
 function EmptySlots() {
   return (
-    <div className="border border-dashed border-hairline rounded-lg p-10 text-center">
-      <div className="font-display text-2xl text-muted mb-2">∅</div>
-      <div className="font-medium text-fg mb-1">Žádné volné termíny</div>
-      <div className="text-sm text-muted max-w-sm mx-auto">
-        V nejbližších 14 dnech nemáme pro vybranou kombinaci volný slot.
-        Zkuste jiného kadeřníka nebo méně služeb.
+    <div className="text-center py-16">
+      <div className="text-5xl mb-4 opacity-40">∅</div>
+      <div className="font-display text-xl md:text-2xl mb-2">
+        Žádné volné termíny
       </div>
+      <p className="text-white/60 text-sm max-w-md mx-auto">
+        Pro tento výběr se nepodařilo najít volný čas v nejbližších 14 dnech.
+        Zkuste jiného kadeřníka nebo méně služeb.
+      </p>
     </div>
   );
 }
 
-function formatDayHeading(ymd: string): string {
+function formatDayParts(ymd: string): { weekday: string; date: string } {
   const [Y, M, D] = ymd.split("-").map(Number);
   const date = new Date(Date.UTC(Y!, M! - 1, D!));
-  const weekdays = ["Ne", "Po", "Út", "St", "Čt", "Pá", "So"];
-  return `${weekdays[date.getUTCDay()]} ${D}.${M}.`;
+  return {
+    weekday: CZ_WEEKDAYS[date.getUTCDay()]!,
+    date: `${D}. ${CZ_MONTHS_GENITIVE[(M ?? 1) - 1]}`,
+  };
 }
