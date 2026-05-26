@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { cn } from "@/lib/cn";
 
 type Props = {
   initial: { name: string; phone: string; email: string } | null;
@@ -12,10 +13,17 @@ type Props = {
 const PHONE_E164 = /^\+\d{8,15}$/;
 const EMAIL_BASIC = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
-const inputCls =
-  "mt-1.5 w-full border border-hairline rounded-md px-3.5 py-2.5 text-fg " +
-  "bg-bg focus:outline-none focus:border-fg focus:ring-2 focus:ring-fg/10 " +
-  "transition";
+const inputCls = [
+  "w-full mt-2 px-4 py-3 rounded-xl",
+  "bg-white/[0.03] backdrop-blur-xl",
+  "border border-white/10",
+  "text-white placeholder-white/30",
+  "transition-all duration-200",
+  "focus:outline-none focus:border-[var(--color-accent)]/50 focus:bg-white/[0.06]",
+  "focus:shadow-[0_0_0_3px_rgba(212,165,116,0.1)]",
+].join(" ");
+
+const labelCls = "block text-xs uppercase tracking-wider text-white/60 mb-2";
 
 export function CustomerStep({ initial, onSubmit, onPrev }: Props) {
   const [name, setName] = useState(initial?.name ?? "");
@@ -30,8 +38,10 @@ export function CustomerStep({ initial, onSubmit, onPrev }: Props) {
 
   return (
     <div>
-      <h1 className="text-3xl md:text-4xl mb-2">Vaše údaje</h1>
-      <p className="text-muted mb-8">
+      <h1 className="font-display text-3xl md:text-4xl tracking-tight mb-2">
+        Vaše údaje
+      </h1>
+      <p className="text-white/60 mb-8">
         Potvrzení a odkaz na zrušení vám pošleme na e-mail.
       </p>
       <form
@@ -41,10 +51,12 @@ export function CustomerStep({ initial, onSubmit, onPrev }: Props) {
             onSubmit({ name: name.trim(), phone, email: email.trim() });
           }
         }}
-        className="space-y-5 max-w-md"
+        className="space-y-5 md:space-y-6 max-w-md"
       >
         <label className="block">
-          <span className="label-mono text-fg">Jméno *</span>
+          <span className={labelCls}>
+            Jméno <span className="text-[var(--color-accent)]">*</span>
+          </span>
           <input
             type="text"
             value={name}
@@ -56,9 +68,9 @@ export function CustomerStep({ initial, onSubmit, onPrev }: Props) {
         </label>
 
         <label className="block">
-          <span className="label-mono text-fg">
-            Telefon *{" "}
-            <span className="normal-case tracking-normal text-muted">
+          <span className={labelCls}>
+            Telefon <span className="text-[var(--color-accent)]">*</span>{" "}
+            <span className="normal-case tracking-normal text-white/40">
               (s předvolbou, např. +420…)
             </span>
           </span>
@@ -71,14 +83,16 @@ export function CustomerStep({ initial, onSubmit, onPrev }: Props) {
             required
           />
           {!phoneValid && phone.length > 4 && (
-            <span className="text-xs text-warning mt-1.5 block">
+            <span className="block text-xs text-[var(--color-danger)] mt-1.5">
               Formát E.164: + a 8–15 číslic (např. +420600100200)
             </span>
           )}
         </label>
 
         <label className="block">
-          <span className="label-mono text-fg">E-mail *</span>
+          <span className={labelCls}>
+            E-mail <span className="text-[var(--color-accent)]">*</span>
+          </span>
           <input
             type="email"
             value={email}
@@ -89,29 +103,58 @@ export function CustomerStep({ initial, onSubmit, onPrev }: Props) {
           />
         </label>
 
-        <label className="flex items-start gap-3 pt-2">
+        <label className="flex items-start gap-3 cursor-pointer group mt-6 md:mt-8">
           <input
             type="checkbox"
             checked={consent}
             onChange={(e) => setConsent(e.target.checked)}
-            className="mt-1 h-5 w-5 accent-fg"
+            className="sr-only"
             required
           />
-          <span className="text-sm text-muted">
+          <span
+            className={cn(
+              "mt-0.5 w-5 h-5 rounded border flex items-center justify-center transition-all duration-200 shrink-0",
+              consent
+                ? "bg-[var(--color-accent)] border-[var(--color-accent)]"
+                : "border-white/20 bg-white/[0.03] group-hover:border-white/40",
+            )}
+          >
+            {consent && (
+              <svg
+                className="w-3 h-3 text-[var(--color-bg-base)]"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M5 12l5 5L20 7" />
+              </svg>
+            )}
+          </span>
+          <span className="text-sm text-white/70 group-hover:text-white transition-colors">
             Souhlasím se zpracováním osobních údajů pro účely rezervace.
             Jméno, telefon a e-mail jsou uloženy odděleně od veřejných dat
             o rezervaci (PII split).
           </span>
         </label>
 
-        <div className="border-t border-hairline pt-6 flex items-center justify-between">
+        <div className="mt-8 md:mt-10 pt-6 border-t border-white/10 flex items-center justify-between">
           <button type="button" onClick={onPrev} className="btn-ghost">
             ← Zpět
           </button>
           <button
             type="submit"
             disabled={!canSubmit}
-            className="btn-primary btn-primary-hover"
+            className={cn(
+              "px-8 py-3 rounded-full font-medium transition-all duration-300",
+              "bg-gradient-to-r from-[var(--color-accent)] to-[var(--color-accent-deep)]",
+              "text-[var(--color-bg-base)]",
+              "shadow-[0_10px_30px_rgba(212,165,116,0.3)]",
+              "hover:scale-105",
+              "disabled:opacity-40 disabled:hover:scale-100 disabled:cursor-not-allowed",
+            )}
           >
             Pokračovat →
           </button>
